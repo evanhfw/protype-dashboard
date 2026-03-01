@@ -1,4 +1,4 @@
-import { Zap, BookOpen, ClipboardList, CalendarCheck, Shield, BarChart3 } from 'lucide-react';
+import { Zap, BookOpen, ClipboardList, CalendarCheck, Shield, BarChart3, Terminal, Lock } from 'lucide-react';
 
 const features = [
   {
@@ -6,6 +6,7 @@ const features = [
     title: 'Real-time Data Scraping',
     description: 'Instantly fetch the latest student data from Dicoding with one-click auto scraper.',
     gradient: 'from-yellow-500 to-orange-500',
+    visual: 'scraper',
   },
   {
     icon: BookOpen,
@@ -40,8 +41,47 @@ const features = [
     title: 'Secure & Private',
     description: 'Credentials are never stored. All data processing happens securely on-demand.',
     gradient: 'from-rose-500 to-red-500',
+    visual: 'secure',
   },
 ];
+
+function ScraperVisual() {
+  return (
+    <div className="mt-3 rounded-lg overflow-hidden border border-white/10 bg-[#0f1117] p-3 font-mono text-[10px] leading-relaxed space-y-1">
+      <div className="flex items-center gap-2 text-gray-500 mb-2">
+        <Terminal className="h-3 w-3" />
+        <span>auto-scraper</span>
+      </div>
+      <p className="text-green-400">✓ Logging in to Dicoding...</p>
+      <p className="text-green-400">✓ Fetching student list (25 students)</p>
+      <p className="text-green-400">✓ Scraping course progress...</p>
+      <p className="text-yellow-400 animate-pulse">⟳ Parsing assignments (18/25)</p>
+      <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+        <div className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 w-[72%] transition-all duration-1000" />
+      </div>
+    </div>
+  );
+}
+
+function SecureVisual() {
+  return (
+    <div className="mt-3 rounded-lg overflow-hidden border border-white/10 bg-[#0f1117] p-4 flex flex-col items-center gap-3">
+      <div className="relative">
+        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-rose-500/20 to-red-500/20 blur-xl" />
+        <div className="relative h-12 w-12 rounded-full bg-gradient-to-br from-rose-500/10 to-red-500/10 border border-rose-500/30 flex items-center justify-center">
+          <Lock className="h-5 w-5 text-rose-400" />
+        </div>
+      </div>
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {['No data stored', 'On-demand only', 'Encrypted'].map((tag) => (
+          <span key={tag} className="px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-[10px] text-rose-400 font-medium">
+            {tag}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function FeaturesSection() {
   return (
@@ -64,7 +104,7 @@ export default function FeaturesSection() {
 
       {/* Feature grid */}
       <div className="mx-auto max-w-6xl grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {features.map(({ icon: Icon, title, description, gradient, screenshot }) => (
+        {features.map(({ icon: Icon, title, description, gradient, screenshot, visual }) => (
           <div
             key={title}
             className="group relative rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm p-6 hover:bg-card/80 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-500"
@@ -79,9 +119,9 @@ export default function FeaturesSection() {
               <h3 className="text-lg font-semibold">{title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
 
-              {/* Screenshot preview */}
+              {/* Screenshot preview — forced dark container */}
               {screenshot && (
-                <div className="mt-3 rounded-lg overflow-hidden border border-border/30 bg-muted/20">
+                <div className="mt-3 rounded-lg overflow-hidden border border-white/10 bg-[#0f1117]">
                   <img
                     src={screenshot}
                     alt={`${title} preview`}
@@ -90,6 +130,10 @@ export default function FeaturesSection() {
                   />
                 </div>
               )}
+
+              {/* Custom visuals for cards without screenshots */}
+              {visual === 'scraper' && <ScraperVisual />}
+              {visual === 'secure' && <SecureVisual />}
             </div>
           </div>
         ))}

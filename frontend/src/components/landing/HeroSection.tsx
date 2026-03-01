@@ -62,16 +62,16 @@ export default function HeroSection() {
             {/* Glow behind card */}
             <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-primary/20 via-pink-500/10 to-primary/5 blur-2xl opacity-60 landing-float" />
 
-            {/* Main card */}
-            <div className="relative rounded-2xl border border-border/40 bg-card/80 backdrop-blur-xl shadow-2xl overflow-hidden">
+            {/* Main card — forced dark bg so dark-mode screenshots always look correct */}
+            <div className="relative rounded-2xl border border-white/10 bg-[#0f1117] shadow-2xl overflow-hidden">
               {/* Top bar */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-red-400/70" />
                   <div className="w-3 h-3 rounded-full bg-yellow-400/70" />
                   <div className="w-3 h-3 rounded-full bg-green-400/70" />
                 </div>
-                <span className="text-xs text-muted-foreground ml-2 font-medium">diCodex — Dashboard</span>
+                <span className="text-xs text-gray-400 ml-2 font-medium">diCodex — Dashboard</span>
               </div>
 
               {/* Real dashboard screenshot */}
