@@ -1,4 +1,34 @@
+import { useTheme } from '@/components/theme-provider';
+import { useEffect, useState } from 'react';
+
+function useResolvedTheme() {
+  const { theme } = useTheme();
+  const [resolved, setResolved] = useState<'dark' | 'light'>(() => {
+    if (theme === 'system') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return theme;
+  });
+
+  useEffect(() => {
+    if (theme !== 'system') {
+      setResolved(theme);
+      return;
+    }
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setResolved(e.matches ? 'dark' : 'light');
+    setResolved(mq.matches ? 'dark' : 'light');
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [theme]);
+
+  return resolved;
+}
+
 export default function HeroSection() {
+  const resolved = useResolvedTheme();
+  const isDark = resolved === 'dark';
+
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden pt-20">
       {/* Animated background elements */}
@@ -62,21 +92,21 @@ export default function HeroSection() {
             {/* Glow behind card */}
             <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-primary/20 via-pink-500/10 to-primary/5 blur-2xl opacity-60 landing-float" />
 
-            {/* Main card — forced dark bg so dark-mode screenshots always look correct */}
-            <div className="relative rounded-2xl border border-white/10 bg-[#0f1117] shadow-2xl overflow-hidden">
+            {/* Main card */}
+            <div className={`relative rounded-2xl border shadow-2xl overflow-hidden ${isDark ? 'border-white/10 bg-[#0f1117]' : 'border-gray-200 bg-white'}`}>
               {/* Top bar */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+              <div className={`flex items-center gap-2 px-4 py-3 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-red-400/70" />
                   <div className="w-3 h-3 rounded-full bg-yellow-400/70" />
                   <div className="w-3 h-3 rounded-full bg-green-400/70" />
                 </div>
-                <span className="text-xs text-gray-400 ml-2 font-medium">diCodex — Dashboard</span>
+                <span className={`text-xs ml-2 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>diCodex — Dashboard</span>
               </div>
 
               {/* Real dashboard screenshot */}
               <img
-                src="/screenshots/dashboard-overview.png"
+                src={isDark ? '/screenshots/dashboard-overview.png' : '/screenshots/dashboard-overview-light.png'}
                 alt="diCodex Dashboard Overview"
                 className="w-full h-auto block"
                 loading="eager"
