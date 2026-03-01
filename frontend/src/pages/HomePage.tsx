@@ -1,6 +1,7 @@
 import LandingNavbar from '@/components/landing/LandingNavbar';
 import HeroSection from '@/components/landing/HeroSection';
 import FeaturesSection from '@/components/landing/FeaturesSection';
+import StatsSection from '@/components/landing/StatsSection';
 import LoginSection from '@/components/landing/LoginSection';
 import FooterSection from '@/components/landing/FooterSection';
 
@@ -10,6 +11,7 @@ const HomePage = () => {
       <LandingNavbar />
       <HeroSection />
       <FeaturesSection />
+      <StatsSection />
       <LoginSection />
       <FooterSection />
     </div>

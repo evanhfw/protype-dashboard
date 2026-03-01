@@ -14,7 +14,7 @@ export default function FooterSection() {
               </span>
             </div>
             <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-              An open-source education analytics dashboard built for DBS Foundation Coding Camp mentors
+              An open-source education analytics dashboard built for DBS Foundation Coding Camp facilitators
               to track cohort progress effortlessly.
             </p>
           </div>
@@ -40,7 +40,7 @@ export default function FooterSection() {
             <h4 className="text-sm font-semibold">Resources</h4>
             <div className="flex flex-col gap-2">
               <a
-                href="https://github.com"
+                href="https://github.com/evanhfw/dicodex"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"

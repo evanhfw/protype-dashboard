@@ -54,7 +54,7 @@ export default function FeaturesSection() {
           </span>
         </h2>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Powerful tools designed for mentors to track, analyze, and support their students effectively.
+          Powerful tools designed for facilitators to track, analyze, and support their students effectively.
         </p>
       </div>
 
