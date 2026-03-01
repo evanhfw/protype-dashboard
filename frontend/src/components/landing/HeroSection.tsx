@@ -1,5 +1,3 @@
-import { BarChart3, TrendingUp, Users } from 'lucide-react';
-
 export default function HeroSection() {
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden pt-20">
@@ -58,7 +56,7 @@ export default function HeroSection() {
           </div>
         </div>
 
-        {/* Dashboard preview illustration */}
+        {/* Dashboard preview — real screenshot */}
         <div className="relative flex justify-center lg:justify-end">
           <div className="relative w-full max-w-md lg:max-w-lg">
             {/* Glow behind card */}
@@ -76,42 +74,13 @@ export default function HeroSection() {
                 <span className="text-xs text-muted-foreground ml-2 font-medium">diCodex — Dashboard</span>
               </div>
 
-              {/* Dashboard mockup content */}
-              <div className="p-5 space-y-4">
-                {/* KPI Row */}
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { icon: Users, label: 'Students', value: '24', color: 'from-blue-500 to-cyan-500' },
-                    { icon: TrendingUp, label: 'Progress', value: '88%', color: 'from-primary to-pink-500' },
-                    { icon: BarChart3, label: 'Completed', value: '245', color: 'from-green-500 to-emerald-500' },
-                  ].map(({ icon: Icon, label, value, color }) => (
-                    <div key={label} className="rounded-xl bg-muted/60 p-3 space-y-1.5">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                      <p className={`text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${color}`}>
-                        {value}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">{label}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Chart bars */}
-                <div className="rounded-xl bg-muted/40 p-4 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground mb-3">Course Progress</p>
-                  {[85, 72, 65, 90, 45].map((val, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="text-[10px] text-muted-foreground w-16 truncate">Course {i + 1}</span>
-                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-1000"
-                          style={{ width: `${val}%`, animationDelay: `${i * 200}ms` }}
-                        />
-                      </div>
-                      <span className="text-[10px] font-medium text-muted-foreground w-8 text-right">{val}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Real dashboard screenshot */}
+              <img
+                src="/screenshots/dashboard-overview.png"
+                alt="diCodex Dashboard Overview"
+                className="w-full h-auto block"
+                loading="eager"
+              />
             </div>
 
             {/* Floating badges */}
