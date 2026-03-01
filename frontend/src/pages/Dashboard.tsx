@@ -54,7 +54,7 @@ const Dashboard = () => {
             <Link to="/">
               <Button variant="ghost" size="sm" className="hover:-translate-x-1 transition-transform px-2 sm:px-3">
                 <ArrowLeft className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Back to Upload</span>
+                <span className="hidden sm:inline">Back to Home</span>
               </Button>
             </Link>
             <div className="h-6 w-px bg-border" />
