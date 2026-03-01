@@ -38,75 +38,76 @@ function useResolvedTheme() {
   return resolved;
 }
 
+// Curated color palette — analogous pairs per row for visual harmony
 const features = [
   {
     icon: Zap,
     title: 'Real-time Data Scraping',
     description: 'Instantly fetch the latest student data from Dicoding with one-click auto scraper.',
-    gradient: 'from-yellow-500 to-orange-500',
+    gradient: 'from-amber-500 to-orange-500',
     visual: 'scraper' as const,
   },
   {
     icon: BookOpen,
     title: 'Course Progress Tracking',
     description: 'Monitor completion rates and individual learning journeys across all courses.',
-    gradient: 'from-blue-500 to-cyan-500',
+    gradient: 'from-orange-500 to-rose-500',
     screenshot: 'course-progress',
   },
   {
     icon: ClipboardList,
     title: 'Assignment Overview',
     description: 'View submission status, grades, and deadlines across all cohort assignments.',
-    gradient: 'from-primary to-pink-500',
+    gradient: 'from-rose-500 to-pink-500',
     screenshot: 'assignment-overview',
-  },
-  {
-    icon: CalendarCheck,
-    title: 'Daily Check-in Analytics',
-    description: 'Analyze student engagement patterns through mood and goal tracking insights.',
-    gradient: 'from-green-500 to-emerald-500',
-    screenshot: 'daily-checkin',
   },
   {
     icon: BarChart3,
     title: 'KPI Dashboard',
     description: 'At-a-glance performance metrics with interactive charts and summary cards.',
-    gradient: 'from-violet-500 to-purple-500',
+    gradient: 'from-violet-500 to-indigo-500',
     screenshot: 'kpi-dashboard',
+  },
+  {
+    icon: CalendarCheck,
+    title: 'Daily Check-in Analytics',
+    description: 'Analyze student engagement patterns through mood and goal tracking insights.',
+    gradient: 'from-indigo-500 to-blue-500',
+    screenshot: 'daily-checkin',
   },
   {
     icon: Users,
     title: 'All Students View',
     description: 'Browse all students in an interactive table with profiles, status, and overall progress.',
-    gradient: 'from-sky-500 to-blue-500',
+    gradient: 'from-blue-500 to-cyan-500',
     screenshot: 'all-students',
   },
   {
     icon: UserSearch,
     title: 'Detailed Student View',
     description: 'Deep-dive into individual profiles — course progress, check-in history, and assignments.',
-    gradient: 'from-teal-500 to-cyan-500',
+    gradient: 'from-teal-500 to-emerald-500',
     screenshot: 'detailed-student',
   },
   {
     icon: CalendarDays,
     title: 'Attendance Overview',
     description: 'Monitor daily attendance with a visual heatmap and comprehensive statistics.',
-    gradient: 'from-amber-500 to-yellow-500',
+    gradient: 'from-emerald-500 to-green-500',
     screenshot: 'attendance-overview',
   },
   {
     icon: Shield,
     title: 'Secure & Private',
     description: 'Credentials are never stored. All data processing happens securely on-demand.',
-    gradient: 'from-rose-500 to-red-500',
+    gradient: 'from-green-500 to-teal-500',
     visual: 'secure' as const,
   },
 ];
 
 function ScraperVisual({ isDark }: { isDark: boolean }) {
   return (
-    <div className={`mt-3 rounded-lg overflow-hidden border p-3 font-mono text-[10px] leading-relaxed space-y-1 ${isDark ? 'border-white/10 bg-[#0f1117]' : 'border-gray-200 bg-gray-50'}`}>
+    <div className={`rounded-lg overflow-hidden border p-3 font-mono text-[10px] leading-relaxed space-y-1 ${isDark ? 'border-white/10 bg-[#0f1117]' : 'border-gray-200 bg-gray-50'}`}>
       <div className={`flex items-center gap-2 mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
         <Terminal className="h-3 w-3" />
         <span>auto-scraper</span>
@@ -124,16 +125,16 @@ function ScraperVisual({ isDark }: { isDark: boolean }) {
 
 function SecureVisual({ isDark }: { isDark: boolean }) {
   return (
-    <div className={`mt-3 rounded-lg overflow-hidden border p-4 flex flex-col items-center gap-3 ${isDark ? 'border-white/10 bg-[#0f1117]' : 'border-gray-200 bg-gray-50'}`}>
+    <div className={`rounded-lg overflow-hidden border p-4 flex flex-col items-center justify-center gap-3 ${isDark ? 'border-white/10 bg-[#0f1117]' : 'border-gray-200 bg-gray-50'}`}>
       <div className="relative">
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-rose-500/20 to-red-500/20 blur-xl" />
-        <div className="relative h-12 w-12 rounded-full bg-gradient-to-br from-rose-500/10 to-red-500/10 border border-rose-500/30 flex items-center justify-center">
-          <Lock className="h-5 w-5 text-rose-400" />
+        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-teal-500/20 to-green-500/20 blur-xl" />
+        <div className="relative h-12 w-12 rounded-full bg-gradient-to-br from-teal-500/10 to-green-500/10 border border-teal-500/30 flex items-center justify-center">
+          <Lock className="h-5 w-5 text-teal-400" />
         </div>
       </div>
       <div className="flex flex-wrap justify-center gap-1.5">
         {['No data stored', 'On-demand only', 'Encrypted'].map((tag) => (
-          <span key={tag} className="px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-[10px] text-rose-500 font-medium">
+          <span key={tag} className="px-2 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-[10px] text-teal-500 font-medium">
             {tag}
           </span>
         ))}
@@ -174,16 +175,16 @@ export default function FeaturesSection() {
             {/* Glow on hover */}
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-            <div className="relative space-y-4">
+            <div className="relative space-y-3">
               <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} shadow-lg`}>
                 <Icon className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-lg font-semibold">{title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
 
-              {/* Screenshot preview — theme aware */}
+              {/* Screenshot preview — natural height, no cropping */}
               {screenshot && (
-                <div className={`mt-3 rounded-lg overflow-hidden border ${isDark ? 'border-white/10 bg-[#0f1117]' : 'border-gray-200 bg-white'}`}>
+                <div className={`rounded-lg overflow-hidden border ${isDark ? 'border-white/10 bg-[#0f1117]' : 'border-gray-200 bg-white'}`}>
                   <img
                     src={`/screenshots/${screenshot}${isDark ? '' : '-light'}.png`}
                     alt={`${title} preview`}
