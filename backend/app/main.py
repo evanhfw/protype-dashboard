@@ -11,7 +11,7 @@ from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import router
+from app.api.routes import router, public_router
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 
@@ -74,6 +74,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(router, prefix="/api")
+app.include_router(public_router, prefix="/api")
 
 
 @app.get("/")

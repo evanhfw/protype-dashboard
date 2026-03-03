@@ -16,6 +16,8 @@ from arq.jobs import Job, JobStatus
 from app.api.auth import require_api_key
 from app.utils.file_handler import FileHandler
 from app.utils.parser import DataTransformer
+from app.db import get_session
+from app.models import RequestLog
 
 
 class ScrapeRequest(BaseModel):
@@ -25,9 +27,61 @@ class ScrapeRequest(BaseModel):
 
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
+# Separate public router (no API key required)
+public_router = APIRouter()
 file_handler = FileHandler()
 transformer = DataTransformer()
 
+
+@public_router.get("/stats/scraping")
+async def get_scraping_stats() -> Dict[str, Any]:
+    """
+    Public endpoint: Get scraping statistics for the landing page.
+    Returns today's completed scrapes grouped by cohort prefix (CAC, CDC, CFC)
+    and all-time total completed scrapes.
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlmodel import select, func
+
+    wib = timezone(timedelta(hours=7))
+    today_wib = datetime.now(wib).date()
+
+    today_stats: Dict[str, int] = {}
+    total_all_time = 0
+
+    try:
+        async for session in get_session():
+            # Today's completed scrapes by class prefix
+            query_today = select(
+                RequestLog.class_name, func.count(RequestLog.id)
+            ).where(
+                func.date(RequestLog.timestamp) == today_wib,
+                RequestLog.status == "completed"
+            ).group_by(RequestLog.class_name)
+
+            result = await session.exec(query_today)
+            for class_name, count in result:
+                prefix = class_name.split("-")[0].strip().upper() if "-" in class_name else class_name
+                if prefix in ["CAC", "CDC", "CFC"]:
+                    today_stats[prefix] = today_stats.get(prefix, 0) + count
+                else:
+                    today_stats[class_name] = today_stats.get(class_name, 0) + count
+
+            # Total all-time completed scrapes
+            query_total = select(func.count(RequestLog.id)).where(
+                RequestLog.status == "completed"
+            )
+            total_result = await session.exec(query_total)
+            total_all_time = total_result.one_or_none() or 0
+
+            break
+    except Exception as e:
+        print(f"Stats query error: {e}")
+
+    return {
+        "today": today_stats,
+        "total_completed": total_all_time,
+    }
 
 async def _decode_progress(arq_pool, job_id: str) -> Dict[str, Any] | None:
     """Decode progress payload from Redis (supports JSON + legacy pipe format)."""
