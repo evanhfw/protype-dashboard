@@ -18,14 +18,15 @@ services:
     environment:
       - VITE_API_KEY=${VITE_API_KEY}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: student-dashboard-backend-dev
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3000", "--reload"]
     # No port exposed — accessed via Vite proxy on internal network
     volumes:
       - ./backend/app:/app/app
@@ -44,15 +45,28 @@ services:
       - DISCORD_ALERT_WEBHOOK_URL=${DISCORD_ALERT_WEBHOOK_URL}
       - MONITOR_INTERVAL=${MONITOR_INTERVAL}
     depends_on:
-      - selenium
-      - redis
+      redis:
+        condition: service_healthy
+      selenium:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: student-dashboard-worker-dev
-    command: uv run python -m app.run_worker
+    command: ["python", "-m", "app.run_worker"]
     volumes:
       - ./backend/app:/app/app
       - ./backend/pyproject.toml:/app/pyproject.toml
@@ -68,16 +82,29 @@ services:
       - DISCORD_ALERT_WEBHOOK_URL=${DISCORD_ALERT_WEBHOOK_URL}
       - MONITOR_INTERVAL=${MONITOR_INTERVAL}
     depends_on:
-      - selenium
-      - redis
+      redis:
+        condition: service_healthy
+      selenium:
+        condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: student-dashboard-redis-dev
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
 
   selenium:
     image: selenium/standalone-chrome:latest

@@ -8,11 +8,25 @@ services:
       - BACKEND_HOST=backend
       - API_KEY=${API_KEY:?API_KEY is required}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - dashboard-network
       - dashboard-shared
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
+        reservations:
+          cpus: "0.1"
+          memory: 64m
 
   backend:
     image: ${DOCKER_USERNAME:?DOCKER_USERNAME is required}/cohort-dashboard-backend:latest
@@ -32,17 +46,38 @@ services:
     volumes:
       - scraped_data:/app/output
     depends_on:
-      - selenium
-      - redis
+      redis:
+        condition: service_healthy
+      selenium:
+        condition: service_started
     restart: unless-stopped
     networks:
       - dashboard-network
       - dashboard-shared
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+        reservations:
+          cpus: "0.25"
+          memory: 256m
 
   worker:
     image: ${DOCKER_USERNAME:?DOCKER_USERNAME is required}/cohort-dashboard-backend:latest
     container_name: student-dashboard-worker
-    command: uv run python -m app.run_worker
+    command: ["python", "-m", "app.run_worker"]
     environment:
       - SELENIUM_URL=http://selenium:4444
       - CODINGCAMP_URL=https://codingcamp.dicoding.com
@@ -56,15 +91,30 @@ services:
     volumes:
       - scraped_data:/app/output
     depends_on:
-      - selenium
-      - redis
+      redis:
+        condition: service_healthy
+      selenium:
+        condition: service_started
     restart: unless-stopped
     networks:
       - dashboard-network
       - dashboard-shared
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 768m
+        reservations:
+          cpus: "0.25"
+          memory: 256m
 
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: student-dashboard-redis
     volumes:
       - redis_data:/data
@@ -72,6 +122,25 @@ services:
     networks:
       - dashboard-network
       - dashboard-shared
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
+        reservations:
+          cpus: "0.1"
+          memory: 64m
 
   selenium:
     image: selenium/standalone-chrome:latest
@@ -95,6 +164,11 @@ services:
     restart: unless-stopped
     networks:
       - dashboard-shared
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   scraped_data:

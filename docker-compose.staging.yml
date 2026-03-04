@@ -12,11 +12,25 @@ services:
       - BACKEND_HOST=backend-staging
       - API_KEY=${STAGING_API_KEY:?STAGING_API_KEY is required}
     depends_on:
-      - backend-staging
+      backend-staging:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - dashboard-staging-network
       - dashboard-shared
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128m
+        reservations:
+          cpus: "0.1"
+          memory: 32m
 
   backend-staging:
     image: ${DOCKER_USERNAME:?DOCKER_USERNAME is required}/cohort-dashboard-backend:staging
@@ -37,16 +51,36 @@ services:
     volumes:
       - scraped_data_staging:/app/output
     depends_on:
-      - redis-staging
+      redis-staging:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - dashboard-staging-network
       - dashboard-shared
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+        reservations:
+          cpus: "0.25"
+          memory: 256m
 
   worker-staging:
     image: ${DOCKER_USERNAME:?DOCKER_USERNAME is required}/cohort-dashboard-backend:staging
     container_name: student-dashboard-worker-staging
-    command: uv run python -m app.run_worker
+    command: ["python", "-m", "app.run_worker"]
     environment:
       # Connect to prod's selenium via shared network
       - SELENIUM_URL=http://student-dashboard-selenium:4444
@@ -62,20 +96,50 @@ services:
     volumes:
       - scraped_data_staging:/app/output
     depends_on:
-      - redis-staging
+      redis-staging:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - dashboard-staging-network
       - dashboard-shared
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+        reservations:
+          cpus: "0.25"
+          memory: 256m
 
   redis-staging:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: student-dashboard-redis-staging
     volumes:
       - redis_data_staging:/data
     restart: unless-stopped
     networks:
       - dashboard-staging-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128m
 
 volumes:
   scraped_data_staging:
