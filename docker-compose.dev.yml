@@ -26,14 +26,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: student-dashboard-backend-dev
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3000", "--reload"]
+    command: ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3000", "--reload"]
     # No port exposed — accessed via Vite proxy on internal network
     volumes:
       - ./backend/app:/app/app
       - ./backend/pyproject.toml:/app/pyproject.toml
       - scraped_data:/app/output
-      # Don't mount .venv
-      - /app/.venv
     environment:
       - SELENIUM_URL=http://selenium:4444
       - CODINGCAMP_URL=https://codingcamp.dicoding.com
@@ -66,12 +64,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: student-dashboard-worker-dev
-    command: ["python", "-m", "app.run_worker"]
+    command: ["/app/.venv/bin/python", "-m", "app.run_worker"]
     volumes:
       - ./backend/app:/app/app
       - ./backend/pyproject.toml:/app/pyproject.toml
       - scraped_data:/app/output
-      - /app/.venv
     environment:
       - SELENIUM_URL=http://selenium:4444
       - CODINGCAMP_URL=https://codingcamp.dicoding.com

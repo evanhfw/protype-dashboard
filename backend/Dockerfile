@@ -1,5 +1,5 @@
 # Stage 1: Install dependencies
-FROM python:3.13.2-slim AS builder
+FROM python:3.14.3-slim AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY pyproject.toml .python-version uv.lock ./
 RUN uv sync --frozen --no-dev
 
 # Stage 2: Minimal runtime image
-FROM python:3.13.2-slim AS runtime
+FROM python:3.14.3-slim AS runtime
 
 WORKDIR /app
 
