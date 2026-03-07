@@ -339,7 +339,9 @@ export const CredentialsForm = ({ onScrapeSuccess }: CredentialsFormProps) => {
           courses: asList(s.courses),
           assignments: asList(s.assignments || assignmentsFromProgress).map((a) => ({
             name: String(a.name || a.assignment || ''),
-            status: a.status === 'Completed' ? ('Completed' as const) : ('Uncompleted' as const),
+            status: a.status === 'Completed' ? ('Completed' as const)
+              : a.status === 'Late' ? ('Late' as const)
+              : ('Uncompleted' as const),
           })),
           dailyCheckins: asList(s.daily_checkins).map((ci) => ({
             date: String(ci.date || ''),
