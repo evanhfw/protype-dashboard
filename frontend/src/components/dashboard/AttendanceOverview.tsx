@@ -9,6 +9,7 @@ import {
   VideoOff,
   ArrowLeftRight,
   ChevronDown,
+  UserX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +26,7 @@ const ATTENDANCE_STATUS_CONFIG: Record<AttendanceStatus, {
   colorClass: string;
   bgClass: string;
   barClass: string;
-  statKey: keyof Pick<AttendanceEventStats, "attending" | "late" | "absent" | "replaced" | "offCam">;
+  statKey: keyof Pick<AttendanceEventStats, "attending" | "late" | "absent" | "replaced" | "offCam" | "abstract">;
 }> = {
   Attending: {
     label: "Attending",
@@ -67,9 +68,17 @@ const ATTENDANCE_STATUS_CONFIG: Record<AttendanceStatus, {
     barClass: "bg-status-red",
     statKey: "absent",
   },
+  Abstract: {
+    label: "Abstract",
+    icon: UserX,
+    colorClass: "text-purple-500",
+    bgClass: "bg-purple-500/15 text-purple-500 border-purple-500/30",
+    barClass: "bg-purple-500",
+    statKey: "abstract",
+  },
 };
 
-const STATUS_ORDER: AttendanceStatus[] = ["Attending", "Late", "Off Cam", "Replaced", "Absent"];
+const STATUS_ORDER: AttendanceStatus[] = ["Attending", "Late", "Off Cam", "Replaced", "Abstract", "Absent"];
 
 const AttendanceOverview = ({ students }: AttendanceOverviewProps) => {
   const [sortField, setSortField] = useState<SortField>("event");
