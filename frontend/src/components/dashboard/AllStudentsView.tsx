@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Search, ChevronDown, GraduationCap, BookOpen, ExternalLink, CalendarCheck, CheckCircle2, XCircle, Clock, VideoOff, ArrowLeftRight } from "lucide-react";
+import { Users, Search, ChevronDown, GraduationCap, BookOpen, ExternalLink, CalendarCheck, CheckCircle2, XCircle, Clock, VideoOff, ArrowLeftRight, UserX } from "lucide-react";
 import type { AttendanceStatus } from "@/data/parsedData";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +52,7 @@ const attendanceIconMap: Record<AttendanceStatus, { icon: React.ComponentType<{ 
   Absent: { icon: XCircle, colorClass: "text-status-red", bgClass: "bg-status-red/15" },
   Replaced: { icon: ArrowLeftRight, colorClass: "text-status-blue", bgClass: "bg-status-blue/15" },
   "Off Cam": { icon: VideoOff, colorClass: "text-status-orange", bgClass: "bg-status-orange/15" },
+  Abstract: { icon: UserX, colorClass: "text-purple-500", bgClass: "bg-purple-500/15" },
 };
 
 const getInitials = (name: string): string => {
@@ -430,26 +431,35 @@ const AllStudentsView = ({ students }: AllStudentsViewProps) => {
                             <div className="mb-2 px-3 py-1 text-xs font-medium text-muted-foreground">
                               Assignments ({student.assignments.filter(a => a.status === "Completed").length}/{student.assignments.length} completed)
                             </div>
-                            {student.assignments.map((assignment, aIdx) => (
-                              <div key={aIdx} className="flex items-center gap-2 rounded-md px-3 py-1.5">
-                                <span className={cn(
-                                  "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px]",
-                                  assignment.status === "Completed"
-                                    ? "bg-status-green/15 text-status-green"
-                                    : "bg-status-red/15 text-status-red"
-                                )}>
-                                  {assignment.status === "Completed" ? "✓" : "✗"}
-                                </span>
-                                <p className={cn(
-                                  "text-xs truncate",
-                                  assignment.status === "Completed"
-                                    ? "text-muted-foreground"
-                                    : "text-card-foreground font-medium"
-                                )}>
-                                  {assignment.name}
-                                </p>
-                              </div>
-                            ))}
+                            {student.assignments.map((assignment, aIdx) => {
+                              const isCompleted = assignment.status === "Completed";
+                              const isLate = assignment.status === "Late";
+                              return (
+                                <div key={aIdx} className="flex items-center gap-2 rounded-md px-3 py-1.5">
+                                  <span className={cn(
+                                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px]",
+                                    isCompleted
+                                      ? "bg-status-green/15 text-status-green"
+                                      : isLate
+                                      ? "bg-status-yellow/15 text-status-yellow"
+                                      : "bg-status-red/15 text-status-red"
+                                  )}>
+                                    {isCompleted ? "✓" : isLate ? "!" : "✗"}
+                                  </span>
+                                  <p className={cn(
+                                    "text-xs truncate flex-1",
+                                    isCompleted
+                                      ? "text-muted-foreground"
+                                      : "text-card-foreground font-medium"
+                                  )}>
+                                    {assignment.name}
+                                  </p>
+                                  {isLate && (
+                                    <span className="text-[10px] font-medium text-status-yellow shrink-0">Late</span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
 
