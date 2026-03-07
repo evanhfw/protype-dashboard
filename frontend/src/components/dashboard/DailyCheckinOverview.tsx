@@ -236,7 +236,8 @@ const DailyCheckinOverview = ({ students }: DailyCheckinOverviewProps) => {
               <div className="overflow-x-auto pb-2">
                 <div className="min-w-fit">
                   {/* Date headers */}
-                  <div className="flex items-center gap-0.5 mb-1 ml-[120px]">
+                  <div className="flex items-center gap-0.5 mb-1">
+                    <div className="w-[120px] shrink-0 sticky left-0 z-10 bg-card" />
                     {heatmap.dates.map(date => (
                       <div
                         key={date}
@@ -250,7 +251,7 @@ const DailyCheckinOverview = ({ students }: DailyCheckinOverviewProps) => {
                   {/* Rows */}
                   {heatmap.rows.map((row) => (
                     <div key={row.name} className="flex items-center gap-0.5 mb-0.5">
-                      <div className="w-[120px] text-xs text-muted-foreground truncate pr-2 text-right shrink-0">
+                      <div className="w-[120px] text-xs text-muted-foreground truncate pr-2 text-right shrink-0 sticky left-0 z-10 bg-card">
                         {row.name.split(" ")[0]}
                       </div>
                       {row.cells.map((cell) => (
@@ -324,7 +325,8 @@ const DailyCheckinOverview = ({ students }: DailyCheckinOverviewProps) => {
                     </div>
                   ))}
                   {/* Legend */}
-                  <div className="flex items-center gap-4 mt-2 ml-[120px] text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-4 mt-2 text-[11px] text-muted-foreground">
+                    <div className="w-[120px] shrink-0 sticky left-0 z-10 bg-card" />
                     <div className="flex items-center gap-1.5">
                       <div className="h-3 w-3 rounded-sm bg-emerald-500 border border-emerald-600" />
                       <span>Good</span>

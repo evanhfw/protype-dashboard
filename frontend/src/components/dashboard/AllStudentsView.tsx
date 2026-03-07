@@ -91,7 +91,7 @@ const getStatusBadgeStyles = (status: ParsedStudentStatus | null) => {
 const AllStudentsView = ({ students }: AllStudentsViewProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | ParsedStudentStatus>("All");
-  const [sortBy, setSortBy] = useState<SortOption>("name-asc");
+  const [sortBy, setSortBy] = useState<SortOption>("progress-asc");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   const toggleExpand = (index: number) => {
