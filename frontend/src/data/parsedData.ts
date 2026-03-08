@@ -8,9 +8,9 @@ export type ParsedStudentStatus =
 
 export type CourseStatus = "Completed" | "In Progress" | "Not Started";
 
-export type AssignmentStatus = "Completed" | "Uncompleted" | "Late";
+export type AssignmentStatus = "Completed" | "Uncompleted" | "Late" | "Resubmit";
 
-export type AttendanceStatus = "Attending" | "Late" | "Absent" | "Replaced" | "Off Cam" | "Abstract";
+export type AttendanceStatus = "Attending" | "Late" | "Absent" | "Replaced" | "Off Cam" | "Abstract" | "Rejected";
 
 export interface Attendance {
   event: string;
@@ -229,6 +229,7 @@ export const getAssignmentStats = (students: ParsedStudent[]) => {
     completed: number;
     uncompleted: number;
     late: number;
+    resubmit: number;
   }>();
 
   students.forEach(student => {
@@ -239,6 +240,7 @@ export const getAssignmentStats = (students: ParsedStudent[]) => {
           completed: 0,
           uncompleted: 0,
           late: 0,
+          resubmit: 0,
         });
       }
 
@@ -248,6 +250,8 @@ export const getAssignmentStats = (students: ParsedStudent[]) => {
         stats.completed++;
       } else if (assignment.status === 'Late') {
         stats.late++;
+      } else if (assignment.status === 'Resubmit') {
+        stats.resubmit++;
       } else {
         stats.uncompleted++;
       }
@@ -272,6 +276,7 @@ export interface AttendanceEventStats {
   replaced: number;
   offCam: number;
   abstract: number;
+  rejected: number;
   attendanceRate: number;
 }
 
@@ -284,6 +289,7 @@ export const getAttendanceStats = (students: ParsedStudent[]): AttendanceEventSt
     replaced: number;
     offCam: number;
     abstract: number;
+    rejected: number;
   }>();
 
   students.forEach(student => {
@@ -297,6 +303,7 @@ export const getAttendanceStats = (students: ParsedStudent[]): AttendanceEventSt
           replaced: 0,
           offCam: 0,
           abstract: 0,
+          rejected: 0,
         });
       }
 
@@ -309,6 +316,7 @@ export const getAttendanceStats = (students: ParsedStudent[]): AttendanceEventSt
         case 'Replaced': stats.replaced++; break;
         case 'Off Cam': stats.offCam++; break;
         case 'Abstract': stats.abstract++; break;
+        case 'Rejected': stats.rejected++; break;
         default: stats.absent++; break;
       }
     });
