@@ -1,14 +1,14 @@
 import { useState, useMemo } from "react";
 import { ParsedStudent, getAssignmentStats } from "@/data/parsedData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardList, CheckCircle2, XCircle, Clock, ChevronDown } from "lucide-react";
+import { ClipboardList, CheckCircle2, XCircle, Clock, ChevronDown, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AssignmentOverviewProps {
   students: ParsedStudent[];
 }
 
-type SortField = "name" | "completionRate" | "completed" | "uncompleted" | "late";
+type SortField = "name" | "completionRate" | "completed" | "uncompleted" | "late" | "resubmit";
 type SortDirection = "asc" | "desc";
 
 const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
@@ -30,6 +30,7 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
         case "completed": aVal = a.completed; bVal = b.completed; break;
         case "uncompleted": aVal = a.uncompleted; bVal = b.uncompleted; break;
         case "late": aVal = a.late; bVal = b.late; break;
+        case "resubmit": aVal = a.resubmit; bVal = b.resubmit; break;
         default: aVal = a.name; bVal = b.name;
       }
 
@@ -42,19 +43,21 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
   }, [stats, sortField, sortDirection]);
 
   const studentsByAssignmentStatus = useMemo(() => {
-    if (!expandedAssignment) return { completed: [] as string[], uncompleted: [] as string[], late: [] as string[] };
+    if (!expandedAssignment) return { completed: [] as string[], uncompleted: [] as string[], late: [] as string[], resubmit: [] as string[] };
     const completed: string[] = [];
     const uncompleted: string[] = [];
     const late: string[] = [];
+    const resubmit: string[] = [];
     students.forEach(s => {
       const a = (s.assignments || []).find(a => a.name === expandedAssignment);
       if (a) {
         if (a.status === "Completed") completed.push(s.name);
         else if (a.status === "Late") late.push(s.name);
+        else if (a.status === "Resubmit") resubmit.push(s.name);
         else uncompleted.push(s.name);
       }
     });
-    return { completed, uncompleted, late };
+    return { completed, uncompleted, late, resubmit };
   }, [expandedAssignment, students]);
 
   if (stats.length === 0) return null;
@@ -166,6 +169,12 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
                               <span>{assignment.late}</span>
                             </div>
                           )}
+                          {assignment.resubmit > 0 && (
+                            <div className="flex items-center gap-1 text-xs text-status-orange">
+                              <RotateCcw className="h-3 w-3" />
+                              <span>{assignment.resubmit}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1 text-xs text-status-red">
                             <XCircle className="h-3 w-3" />
                             <span>{assignment.uncompleted}</span>
@@ -189,6 +198,7 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
                                 completed={studentsByAssignmentStatus.completed}
                                 uncompleted={studentsByAssignmentStatus.uncompleted}
                                 late={studentsByAssignmentStatus.late}
+                                resubmit={studentsByAssignmentStatus.resubmit}
                               />
                             )}
                           </div>
@@ -218,6 +228,10 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
             <span>Late</span>
           </div>
           <div className="flex items-center gap-1.5">
+            <RotateCcw className="h-3 w-3 text-status-orange" />
+            <span>Resubmit</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <XCircle className="h-3 w-3 text-status-red" />
             <span>Uncompleted</span>
           </div>
@@ -227,7 +241,7 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
   );
 };
 
-type AssignmentTab = "uncompleted" | "late" | "completed";
+type AssignmentTab = "uncompleted" | "late" | "resubmit" | "completed";
 
 const ASSIGNMENT_TAB_CONFIG: Record<AssignmentTab, {
   label: string;
@@ -247,6 +261,12 @@ const ASSIGNMENT_TAB_CONFIG: Record<AssignmentTab, {
     colorClass: "text-status-yellow",
     bgClass: "bg-status-yellow/15 text-status-yellow",
   },
+  resubmit: {
+    label: "Resubmit",
+    icon: RotateCcw,
+    colorClass: "text-status-orange",
+    bgClass: "bg-status-orange/15 text-status-orange",
+  },
   completed: {
     label: "Completed",
     icon: CheckCircle2,
@@ -259,18 +279,20 @@ function AssignmentExpandedDetail({
   completed,
   uncompleted,
   late,
+  resubmit,
 }: {
   completed: string[];
   uncompleted: string[];
   late: string[];
+  resubmit: string[];
 }) {
   const [activeTab, setActiveTab] = useState<AssignmentTab>(
-    uncompleted.length > 0 ? "uncompleted" : late.length > 0 ? "late" : "completed"
+    uncompleted.length > 0 ? "uncompleted" : late.length > 0 ? "late" : resubmit.length > 0 ? "resubmit" : "completed"
   );
-  const allCompleted = uncompleted.length === 0 && late.length === 0;
+  const allCompleted = uncompleted.length === 0 && late.length === 0 && resubmit.length === 0;
 
-  const tabOrder: AssignmentTab[] = ["uncompleted", "late", "completed"];
-  const lists: Record<AssignmentTab, string[]> = { completed, uncompleted, late };
+  const tabOrder: AssignmentTab[] = ["uncompleted", "late", "resubmit", "completed"];
+  const lists: Record<AssignmentTab, string[]> = { completed, uncompleted, late, resubmit };
   const activeConfig = ASSIGNMENT_TAB_CONFIG[activeTab];
   const ActiveIcon = activeConfig.icon;
   const activeList = lists[activeTab];

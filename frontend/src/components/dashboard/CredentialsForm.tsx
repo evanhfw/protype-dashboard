@@ -341,6 +341,7 @@ export const CredentialsForm = ({ onScrapeSuccess }: CredentialsFormProps) => {
             name: String(a.name || a.assignment || ''),
             status: a.status === 'Completed' ? ('Completed' as const)
               : a.status === 'Late' ? ('Late' as const)
+              : a.status === 'Resubmit' ? ('Resubmit' as const)
               : ('Uncompleted' as const),
           })),
           dailyCheckins: asList(s.daily_checkins).map((ci) => ({
