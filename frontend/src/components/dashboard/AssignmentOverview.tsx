@@ -1,14 +1,14 @@
 import { useState, useMemo } from "react";
 import { ParsedStudent, getAssignmentStats } from "@/data/parsedData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardList, CheckCircle2, XCircle, ChevronDown } from "lucide-react";
+import { ClipboardList, CheckCircle2, XCircle, Clock, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AssignmentOverviewProps {
   students: ParsedStudent[];
 }
 
-type SortField = "name" | "completionRate" | "completed" | "uncompleted";
+type SortField = "name" | "completionRate" | "completed" | "uncompleted" | "late";
 type SortDirection = "asc" | "desc";
 
 const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
@@ -29,6 +29,7 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
         case "completionRate": aVal = a.completionRate; bVal = b.completionRate; break;
         case "completed": aVal = a.completed; bVal = b.completed; break;
         case "uncompleted": aVal = a.uncompleted; bVal = b.uncompleted; break;
+        case "late": aVal = a.late; bVal = b.late; break;
         default: aVal = a.name; bVal = b.name;
       }
 
@@ -41,17 +42,19 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
   }, [stats, sortField, sortDirection]);
 
   const studentsByAssignmentStatus = useMemo(() => {
-    if (!expandedAssignment) return { completed: [] as string[], uncompleted: [] as string[] };
+    if (!expandedAssignment) return { completed: [] as string[], uncompleted: [] as string[], late: [] as string[] };
     const completed: string[] = [];
     const uncompleted: string[] = [];
+    const late: string[] = [];
     students.forEach(s => {
       const a = (s.assignments || []).find(a => a.name === expandedAssignment);
       if (a) {
         if (a.status === "Completed") completed.push(s.name);
+        else if (a.status === "Late") late.push(s.name);
         else uncompleted.push(s.name);
       }
     });
-    return { completed, uncompleted };
+    return { completed, uncompleted, late };
   }, [expandedAssignment, students]);
 
   if (stats.length === 0) return null;
@@ -157,6 +160,12 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
                             <CheckCircle2 className="h-3 w-3" />
                             <span>{assignment.completed}</span>
                           </div>
+                          {assignment.late > 0 && (
+                            <div className="flex items-center gap-1 text-xs text-status-yellow">
+                              <Clock className="h-3 w-3" />
+                              <span>{assignment.late}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1 text-xs text-status-red">
                             <XCircle className="h-3 w-3" />
                             <span>{assignment.uncompleted}</span>
@@ -179,6 +188,7 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
                               <AssignmentExpandedDetail
                                 completed={studentsByAssignmentStatus.completed}
                                 uncompleted={studentsByAssignmentStatus.uncompleted}
+                                late={studentsByAssignmentStatus.late}
                               />
                             )}
                           </div>
@@ -204,6 +214,10 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
             <span>Completed</span>
           </div>
           <div className="flex items-center gap-1.5">
+            <Clock className="h-3 w-3 text-status-yellow" />
+            <span>Late</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <XCircle className="h-3 w-3 text-status-red" />
             <span>Uncompleted</span>
           </div>
@@ -213,7 +227,7 @@ const AssignmentOverview = ({ students }: AssignmentOverviewProps) => {
   );
 };
 
-type AssignmentTab = "uncompleted" | "completed";
+type AssignmentTab = "uncompleted" | "late" | "completed";
 
 const ASSIGNMENT_TAB_CONFIG: Record<AssignmentTab, {
   label: string;
@@ -227,6 +241,12 @@ const ASSIGNMENT_TAB_CONFIG: Record<AssignmentTab, {
     colorClass: "text-status-red",
     bgClass: "bg-status-red/15 text-status-red",
   },
+  late: {
+    label: "Late",
+    icon: Clock,
+    colorClass: "text-status-yellow",
+    bgClass: "bg-status-yellow/15 text-status-yellow",
+  },
   completed: {
     label: "Completed",
     icon: CheckCircle2,
@@ -238,17 +258,19 @@ const ASSIGNMENT_TAB_CONFIG: Record<AssignmentTab, {
 function AssignmentExpandedDetail({
   completed,
   uncompleted,
+  late,
 }: {
   completed: string[];
   uncompleted: string[];
+  late: string[];
 }) {
   const [activeTab, setActiveTab] = useState<AssignmentTab>(
-    uncompleted.length > 0 ? "uncompleted" : "completed"
+    uncompleted.length > 0 ? "uncompleted" : late.length > 0 ? "late" : "completed"
   );
-  const allCompleted = uncompleted.length === 0;
+  const allCompleted = uncompleted.length === 0 && late.length === 0;
 
-  const tabOrder: AssignmentTab[] = ["uncompleted", "completed"];
-  const lists: Record<AssignmentTab, string[]> = { completed, uncompleted };
+  const tabOrder: AssignmentTab[] = ["uncompleted", "late", "completed"];
+  const lists: Record<AssignmentTab, string[]> = { completed, uncompleted, late };
   const activeConfig = ASSIGNMENT_TAB_CONFIG[activeTab];
   const ActiveIcon = activeConfig.icon;
   const activeList = lists[activeTab];

@@ -8,9 +8,9 @@ export type ParsedStudentStatus =
 
 export type CourseStatus = "Completed" | "In Progress" | "Not Started";
 
-export type AssignmentStatus = "Completed" | "Uncompleted";
+export type AssignmentStatus = "Completed" | "Uncompleted" | "Late";
 
-export type AttendanceStatus = "Attending" | "Late" | "Absent" | "Replaced" | "Off Cam";
+export type AttendanceStatus = "Attending" | "Late" | "Absent" | "Replaced" | "Off Cam" | "Abstract";
 
 export interface Attendance {
   event: string;
@@ -228,6 +228,7 @@ export const getAssignmentStats = (students: ParsedStudent[]) => {
     totalStudents: number;
     completed: number;
     uncompleted: number;
+    late: number;
   }>();
 
   students.forEach(student => {
@@ -237,6 +238,7 @@ export const getAssignmentStats = (students: ParsedStudent[]) => {
           totalStudents: 0,
           completed: 0,
           uncompleted: 0,
+          late: 0,
         });
       }
 
@@ -244,6 +246,8 @@ export const getAssignmentStats = (students: ParsedStudent[]) => {
       stats.totalStudents++;
       if (assignment.status === 'Completed') {
         stats.completed++;
+      } else if (assignment.status === 'Late') {
+        stats.late++;
       } else {
         stats.uncompleted++;
       }
@@ -267,6 +271,7 @@ export interface AttendanceEventStats {
   absent: number;
   replaced: number;
   offCam: number;
+  abstract: number;
   attendanceRate: number;
 }
 
@@ -278,6 +283,7 @@ export const getAttendanceStats = (students: ParsedStudent[]): AttendanceEventSt
     absent: number;
     replaced: number;
     offCam: number;
+    abstract: number;
   }>();
 
   students.forEach(student => {
@@ -290,6 +296,7 @@ export const getAttendanceStats = (students: ParsedStudent[]): AttendanceEventSt
           absent: 0,
           replaced: 0,
           offCam: 0,
+          abstract: 0,
         });
       }
 
@@ -301,6 +308,7 @@ export const getAttendanceStats = (students: ParsedStudent[]): AttendanceEventSt
         case 'Absent': stats.absent++; break;
         case 'Replaced': stats.replaced++; break;
         case 'Off Cam': stats.offCam++; break;
+        case 'Abstract': stats.abstract++; break;
         default: stats.absent++; break;
       }
     });
@@ -310,7 +318,7 @@ export const getAttendanceStats = (students: ParsedStudent[]): AttendanceEventSt
     event,
     ...stats,
     attendanceRate: stats.totalStudents > 0
-      ? Math.round(((stats.totalStudents - stats.absent) / stats.totalStudents) * 100)
+      ? Math.round(((stats.totalStudents - stats.absent - stats.abstract) / stats.totalStudents) * 100)
       : 0,
   }));
 };
