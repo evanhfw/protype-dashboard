@@ -120,7 +120,10 @@ const UploadPage = () => {
             })),
             assignments: assignmentItems.map((a: any) => ({
               name: a.assignment || a.name || '',
-              status: a.status === 'Completed' ? 'Completed' as const : 'Uncompleted' as const,
+              status: a.status === 'Completed' ? 'Completed' as const
+                : a.status === 'Late' ? 'Late' as const
+                : a.status === 'Resubmit' ? 'Resubmit' as const
+                : 'Uncompleted' as const,
             })),
             dailyCheckins: (progress.daily_checkins?.items || []).map((ci: any) => ({
               date: ci.date || '',
