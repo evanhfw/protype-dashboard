@@ -33,6 +33,10 @@ file_handler = FileHandler()
 transformer = DataTransformer()
 
 
+def _normalize_class_name(class_name: str | None) -> str:
+    return (class_name or "").strip() or "Unknown"
+
+
 @public_router.get("/stats/scraping")
 async def get_scraping_stats() -> Dict[str, Any]:
     """
@@ -61,6 +65,7 @@ async def get_scraping_stats() -> Dict[str, Any]:
 
             result = await session.exec(query_today)
             for class_name, count in result:
+                class_name = _normalize_class_name(class_name)
                 prefix = class_name.split("-")[0].strip().upper() if "-" in class_name else class_name
                 if prefix in ["CAC", "CDC", "CFC"]:
                     today_stats[prefix] = today_stats.get(prefix, 0) + count

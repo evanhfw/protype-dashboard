@@ -6,6 +6,10 @@ from app.db import get_session
 from app.models import RequestLog
 
 
+def _normalize_class_name(class_name: str | None) -> str:
+    return (class_name or "").strip() or "Unknown"
+
+
 class NotificationService:
     def __init__(self):
         self.webhook_url = os.getenv("DISCORD_STATS_WEBHOOK_URL")
@@ -35,6 +39,7 @@ class NotificationService:
             
             result = await session.exec(query)
             for class_name, count in result:
+                class_name = _normalize_class_name(class_name)
                 # Aggregate by prefix (e.g. CAC-19 -> CAC)
                 prefix = class_name.split("-")[0].strip().upper() if "-" in class_name else class_name
                 # Handle known prefixes or fallback
