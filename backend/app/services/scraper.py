@@ -599,13 +599,46 @@ class ScraperService:
         data = driver.execute_script(
             r"""
             const text = (el) => (el?.textContent || "").replace(/\s+/g, " ").trim();
+            const allText = Array.from(document.querySelectorAll("body *"))
+              .map((el) => text(el))
+              .filter(Boolean);
+            const groupPattern = /^(CAC|CDC|CFC)-\d+$/i;
+            const codePattern = /^facil-[a-z]+-\d+$/i;
             const nav = Array.from(document.querySelectorAll("a.nav-link"))
               .map((el) => text(el))
               .filter(Boolean);
+
+            const codeElement = Array.from(document.querySelectorAll(".text-id.uppercase, .text-id"))
+              .find((el) => codePattern.test(text(el)));
+            const mentorCard = codeElement?.closest(".card");
+            const cardText = mentorCard
+              ? Array.from(mentorCard.querySelectorAll("*"))
+                .map((el) => text(el))
+                .filter(Boolean)
+              : [];
+            const oldName = text(document.querySelector(".sidebar-menu .text-xl"));
+            const newName = text(mentorCard?.querySelector("span.text-xl"))
+              || Array.from(document.querySelectorAll(".card span.text-xl"))
+                .map((el) => text(el))
+                .find((value) => value && !groupPattern.test(value) && !codePattern.test(value))
+              || "";
+            const mentorCode = text(document.querySelector(".sidebar-menu .text-id.uppercase"))
+              || text(codeElement)
+              || allText.find((value) => codePattern.test(value))
+              || "";
+            const oldGroup = text(document.querySelector("li .font-normal.text-black.pt-1.pl-5"));
+            const newGroup = cardText.find((value) => groupPattern.test(value))
+              || allText.find((value) => groupPattern.test(value))
+              || "";
+            const codeGroup = (mentorCode.match(/^facil-([a-z]+)-(\d+)$/i) || [])
+              .slice(1)
+              .join("-")
+              .toUpperCase();
+
             return {
-              name: text(document.querySelector(".sidebar-menu .text-xl")),
-              mentor_code: text(document.querySelector(".sidebar-menu .text-id.uppercase")),
-              group: text(document.querySelector("li .font-normal.text-black.pt-1.pl-5")),
+              name: oldName || newName,
+              mentor_code: mentorCode,
+              group: oldGroup || newGroup || codeGroup,
               nav_items: nav
             };
             """

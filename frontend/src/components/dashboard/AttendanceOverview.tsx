@@ -88,6 +88,7 @@ const ATTENDANCE_STATUS_CONFIG: Record<AttendanceStatus, {
 };
 
 const STATUS_ORDER: AttendanceStatus[] = ["Attending", "Late", "Off Cam", "Replaced", "Abstract", "Rejected", "Absent"];
+const EVENT_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 const AttendanceOverview = ({ students }: AttendanceOverviewProps) => {
   const [sortField, setSortField] = useState<SortField>("event");
@@ -111,7 +112,7 @@ const AttendanceOverview = ({ students }: AttendanceOverviewProps) => {
       }
 
       if (typeof aVal === "string" && typeof bVal === "string") {
-        return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        return sortDirection === "asc" ? EVENT_COLLATOR.compare(aVal, bVal) : EVENT_COLLATOR.compare(bVal, aVal);
       }
       return sortDirection === "asc" ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
     });

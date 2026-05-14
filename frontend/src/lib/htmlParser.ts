@@ -37,8 +37,8 @@ export const parseStudentHTML = (htmlString: string): ParseResult => {
       };
     }
 
-    // Find all student sections by h3 tags with specific class
-    const studentHeaders = doc.querySelectorAll('h3.text-3xl.font-semibold');
+    // Find all student sections by old h3 markup or current profile-link span markup
+    const studentHeaders = doc.querySelectorAll('h3.text-3xl.font-semibold, section[data-element="profile"] a[href^="/u/"] span.block.overflow-hidden.font-bold');
 
     if (studentHeaders.length === 0) {
       return {
@@ -49,13 +49,13 @@ export const parseStudentHTML = (htmlString: string): ParseResult => {
 
     const students: ParsedStudent[] = [];
 
-    studentHeaders.forEach((h3) => {
-      const studentName = h3.textContent?.trim() || '';
+    studentHeaders.forEach((header) => {
+      const studentName = header.textContent?.trim() || '';
       
       if (!studentName) return;
 
       // Find the parent container
-      let container = h3.parentElement;
+      let container = header.parentElement;
       while (container && !container.classList.contains('container')) {
         container = container.parentElement;
       }
