@@ -68,13 +68,15 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           port: 22
           script: |
-            set -euo pipefail
+            bash -Eeuo pipefail <<'REMOTE_SCRIPT'
+            set -Eeuo pipefail
+            trap 'echo "ERROR: production deploy failed at line ${LINENO}: ${BASH_COMMAND}" >&2' ERR
 
             COMPOSE_PROJECT_NAME=cohort-dashboard-prod
             COMPOSE_FILE=docker-compose.prod.yml
 
-            mkdir -p ${{ secrets.DEPLOY_PATH }}
-            cd ${{ secrets.DEPLOY_PATH }}
+            mkdir -p "${{ secrets.DEPLOY_PATH }}"
+            cd "${{ secrets.DEPLOY_PATH }}"
             
             cat > .env << 'EOF'
             DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
@@ -142,11 +144,15 @@ jobs:
               exit 1
             fi
 
-            docker exec student-dashboard-frontend sh -lc \
-              'grep -n "proxy_set_header X-API-Key" /etc/nginx/conf.d/default.conf'
+            if ! docker exec student-dashboard-frontend sh -lc \
+              'grep -n "proxy_set_header X-API-Key" /etc/nginx/conf.d/default.conf'; then
+              echo "ERROR: frontend nginx config does not include X-API-Key proxy header."
+              exit 1
+            fi
 
             docker image prune -f
             docker ps
+            REMOTE_SCRIPT
 
       - name: Notify Discord on Success
         if: success()
