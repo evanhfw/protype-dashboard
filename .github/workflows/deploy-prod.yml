@@ -152,6 +152,15 @@ jobs:
             docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" pull
             docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d
 
+            sleep 5
+            for i in 1 2 3; do
+              if docker ps --format '{{.Names}}' | grep -q '^student-dashboard-frontend$'; then
+                break
+              fi
+              echo "Waiting for frontend container (attempt $i/3)..."
+              sleep 5
+            done
+
             # Post-deploy sanity checks for API key propagation
             frontend_key_len=$(docker exec student-dashboard-frontend sh -lc 'printf %s "$API_KEY" | wc -c' | tr -d ' ')
             backend_key_len=$(docker exec student-dashboard-backend sh -lc 'printf %s "$API_KEY" | wc -c' | tr -d ' ')
