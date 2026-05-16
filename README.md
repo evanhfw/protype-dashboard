@@ -61,7 +61,7 @@ The easiest way to run the entire application:
 git clone https://github.com/evanhfw/protype-dashboard.git
 cd protype-dashboard
 
-# Start all services (frontend, backend, selenium)
+# Start all services (frontend, backend, worker)
 docker-compose -f docker-compose.dev.yml up
 
 # Access the application
@@ -172,7 +172,6 @@ DICODING_EMAIL=your-email@student.devacademy.id
 DICODING_PASSWORD=your-password
 
 # Backend Services Configuration
-SELENIUM_URL=http://selenium:4444
 CODINGCAMP_URL=https://codingcamp.dicoding.com
 
 # ===================================
