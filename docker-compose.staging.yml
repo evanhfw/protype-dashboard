@@ -79,14 +79,16 @@ services:
 
 volumes:
   scraped_data_staging:
+    external: true
     name: student_dashboard_data_staging
   redis_data_staging:
+    external: true
     name: student_dashboard_redis_staging
 
 networks:
   dashboard-staging-network:
+    external: true
     name: dashboard-staging-network
-    driver: bridge
   dashboard-shared:
     external: true
     name: dashboard-shared-network

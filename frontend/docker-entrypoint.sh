@@ -7,8 +7,8 @@ window.__APP_CONFIG__ = {
 };
 EOF
 
-if [ -f /docker-entrypoint.d/20-envsubst-on-templates.sh ]; then
-    . /docker-entrypoint.d/20-envsubst-on-templates.sh
+if [ -x /docker-entrypoint.d/20-envsubst-on-templates.sh ]; then
+    /docker-entrypoint.d/20-envsubst-on-templates.sh
 fi
 
 if ! nginx -t; then

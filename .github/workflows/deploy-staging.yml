@@ -102,8 +102,8 @@ jobs:
               exit 1
             fi
             
-            mkdir -p ${{ secrets.STAGING_DEPLOY_PATH }}
-            cd ${{ secrets.STAGING_DEPLOY_PATH }}
+            mkdir -p "${{ secrets.STAGING_DEPLOY_PATH }}"
+            cd "${{ secrets.STAGING_DEPLOY_PATH }}"
             
             cat > .env << 'EOF'
             DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
@@ -129,6 +129,11 @@ jobs:
             done
             
             curl -o "$COMPOSE_FILE" https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/docker-compose.staging.yml
+
+            # Staging resources are named explicitly so old deploys keep data without Compose ownership warnings.
+            docker network create dashboard-staging-network >/dev/null 2>&1 || true
+            docker volume create student_dashboard_data_staging >/dev/null
+            docker volume create student_dashboard_redis_staging >/dev/null
 
             # Rendered compose should show concrete values for critical env vars
             docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" config > /tmp/staging-compose-rendered.yml
