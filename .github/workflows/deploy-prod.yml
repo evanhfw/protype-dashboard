@@ -99,6 +99,7 @@ jobs:
             DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
             HOST_PORT=${{ secrets.HOST_PORT }}
             API_KEY=${{ secrets.API_KEY }}
+            VITE_API_KEY=${{ secrets.VITE_API_KEY || secrets.API_KEY }}
             CONN_PSQL=${{ secrets.CONN_PSQL }}
             POSTGRES_TABLE_NAME=${{ secrets.POSTGRES_TABLE_NAME }}
             DISCORD_STATS_WEBHOOK_URL=${{ secrets.DISCORD_STATS_WEBHOOK_URL }}
@@ -124,7 +125,7 @@ jobs:
             rm -rf monitoring/
             
             docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" config > /tmp/prod-compose-rendered.yml
-            if grep -qE 'CONN_PSQL: ""|API_KEY: ""' /tmp/prod-compose-rendered.yml; then
+            if grep -qE '^[[:space:]]+(CONN_PSQL|API_KEY): ""$' /tmp/prod-compose-rendered.yml; then
               echo "ERROR: Resolved compose contains empty CONN_PSQL/API_KEY."
               exit 1
             fi
