@@ -30,12 +30,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build-frontend:
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v6.0.2
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3.6.0
         with:
@@ -49,8 +49,18 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/cohort-dashboard-frontend:latest
-          build-args: |
-            VITE_API_KEY=${{ secrets.VITE_API_KEY }}
+
+  build-backend:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3.6.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push backend
         uses: docker/build-push-action@v6.18.0
@@ -59,6 +69,13 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/cohort-dashboard-backend:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [build-frontend, build-backend]
+    steps:
+      - uses: actions/checkout@v6.0.2
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -134,6 +151,28 @@ jobs:
             docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" down --remove-orphans || true
             docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" pull
             docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d
+
+            sleep 5
+            for i in 1 2 3 4 5; do
+              container_status=$(docker inspect -f '{{.State.Status}}' student-dashboard-frontend 2>/dev/null || echo "not_found")
+              if [ "$container_status" = "running" ]; then
+                break
+              fi
+              if [ "$container_status" = "restarting" ] || [ "$container_status" = "exited" ] || [ "$container_status" = "dead" ]; then
+                echo "ERROR: frontend container is $container_status"
+                docker logs --tail 50 student-dashboard-frontend
+                docker inspect student-dashboard-frontend --format '{{.State.ExitCode}} {{.State.Error}}'
+                exit 1
+              fi
+              echo "Waiting for frontend container (attempt $i/5, status: $container_status)..."
+              sleep 5
+            done
+
+            if [ "$(docker inspect -f '{{.State.Status}}' student-dashboard-frontend 2>/dev/null)" != "running" ]; then
+              echo "ERROR: frontend container did not reach running state"
+              docker logs --tail 50 student-dashboard-frontend
+              exit 1
+            fi
 
             # Post-deploy sanity checks for API key propagation
             frontend_key_len=$(docker exec student-dashboard-frontend sh -lc 'printf %s "$API_KEY" | wc -c' | tr -d ' ')

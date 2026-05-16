@@ -7,9 +7,16 @@ services:
     environment:
       - BACKEND_HOST=backend
       - API_KEY=${API_KEY:?API_KEY is required}
+      - VITE_API_KEY=${VITE_API_KEY:-}
     depends_on:
       - backend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - dashboard-network
       - dashboard-shared

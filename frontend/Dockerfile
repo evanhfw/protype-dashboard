@@ -14,10 +14,6 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Accept build arguments for API Key
-ARG VITE_API_KEY
-ENV VITE_API_KEY=${VITE_API_KEY}
-
 # Build the application
 RUN npm run build
 
@@ -30,6 +26,11 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx template to official envsubst template directory.
 # The default nginx entrypoint will render this into /etc/nginx/conf.d/default.conf.
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+
+COPY docker-entrypoint.sh /docker-entrypoint-custom.sh
+RUN chmod +x /docker-entrypoint-custom.sh
+
+ENTRYPOINT ["/docker-entrypoint-custom.sh"]
 
 # Expose port
 EXPOSE 8080

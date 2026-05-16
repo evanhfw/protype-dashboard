@@ -10,9 +10,16 @@ services:
     environment:
       - BACKEND_HOST=backend-staging
       - API_KEY=${STAGING_API_KEY:?STAGING_API_KEY is required}
+      - VITE_API_KEY=${STAGING_API_KEY:-}
     depends_on:
       - backend-staging
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - dashboard-staging-network
       - dashboard-shared
@@ -72,14 +79,16 @@ services:
 
 volumes:
   scraped_data_staging:
+    external: true
     name: student_dashboard_data_staging
   redis_data_staging:
+    external: true
     name: student_dashboard_redis_staging
 
 networks:
   dashboard-staging-network:
+    external: true
     name: dashboard-staging-network
-    driver: bridge
   dashboard-shared:
     external: true
     name: dashboard-shared-network
