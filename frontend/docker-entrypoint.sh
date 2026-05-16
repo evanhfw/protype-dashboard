@@ -7,4 +7,14 @@ window.__APP_CONFIG__ = {
 };
 EOF
 
-exec /docker-entrypoint.sh "$@"
+if [ -f /docker-entrypoint.d/20-envsubst-on-templates.sh ]; then
+    . /docker-entrypoint.d/20-envsubst-on-templates.sh
+fi
+
+if ! nginx -t; then
+    echo "ERROR: nginx configuration test failed"
+    cat /etc/nginx/conf.d/default.conf 2>/dev/null || true
+    exit 1
+fi
+
+exec nginx -g 'daemon off;'

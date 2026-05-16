@@ -153,13 +153,26 @@ jobs:
             docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d
 
             sleep 5
-            for i in 1 2 3; do
-              if docker ps --format '{{.Names}}' | grep -q '^student-dashboard-frontend$'; then
+            for i in 1 2 3 4 5; do
+              container_status=$(docker inspect -f '{{.State.Status}}' student-dashboard-frontend 2>/dev/null || echo "not_found")
+              if [ "$container_status" = "running" ]; then
                 break
               fi
-              echo "Waiting for frontend container (attempt $i/3)..."
+              if [ "$container_status" = "restarting" ] || [ "$container_status" = "exited" ] || [ "$container_status" = "dead" ]; then
+                echo "ERROR: frontend container is $container_status"
+                docker logs --tail 50 student-dashboard-frontend
+                docker inspect student-dashboard-frontend --format '{{.State.ExitCode}} {{.State.Error}}'
+                exit 1
+              fi
+              echo "Waiting for frontend container (attempt $i/5, status: $container_status)..."
               sleep 5
             done
+
+            if [ "$(docker inspect -f '{{.State.Status}}' student-dashboard-frontend 2>/dev/null)" != "running" ]; then
+              echo "ERROR: frontend container did not reach running state"
+              docker logs --tail 50 student-dashboard-frontend
+              exit 1
+            fi
 
             # Post-deploy sanity checks for API key propagation
             frontend_key_len=$(docker exec student-dashboard-frontend sh -lc 'printf %s "$API_KEY" | wc -c' | tr -d ' ')
