@@ -118,7 +118,6 @@ jobs:
               student-dashboard-backend \
               student-dashboard-worker \
               student-dashboard-redis \
-              student-dashboard-selenium \
               student-dashboard-prometheus \
               student-dashboard-grafana \
               student-dashboard-cadvisor \

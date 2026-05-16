@@ -1,5 +1,4 @@
 # Staging Environment Docker Compose
-# Uses shared selenium container from production to save resources
 # Prerequisites: Production must be running first to create the shared network
 
 services:
@@ -22,11 +21,8 @@ services:
     image: ${DOCKER_USERNAME:?DOCKER_USERNAME is required}/cohort-dashboard-backend:staging
     container_name: student-dashboard-backend-staging
     environment:
-      # Connect to prod's selenium via shared network
-      - SELENIUM_URL=http://student-dashboard-selenium:4444
       - CODINGCAMP_URL=https://codingcamp.dicoding.com
       - API_KEY=${STAGING_API_KEY:?STAGING_API_KEY is required}
-      # Use staging's own redis
       - REDIS_URL=redis://redis-staging:6379
       - CONN_PSQL=${STAGING_CONN_PSQL:?STAGING_CONN_PSQL is required}
       - POSTGRES_TABLE_NAME=${STAGING_POSTGRES_TABLE_NAME:?STAGING_POSTGRES_TABLE_NAME is required}
@@ -48,10 +44,7 @@ services:
     container_name: student-dashboard-worker-staging
     command: uv run python -m app.run_worker
     environment:
-      # Connect to prod's selenium via shared network
-      - SELENIUM_URL=http://student-dashboard-selenium:4444
       - CODINGCAMP_URL=https://codingcamp.dicoding.com
-      # Use staging's own redis
       - REDIS_URL=redis://redis-staging:6379
       - CONN_PSQL=${STAGING_CONN_PSQL:?STAGING_CONN_PSQL is required}
       - POSTGRES_TABLE_NAME=${STAGING_POSTGRES_TABLE_NAME:?STAGING_POSTGRES_TABLE_NAME is required}
