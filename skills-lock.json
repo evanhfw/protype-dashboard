@@ -11,6 +11,12 @@
       "sourceType": "github",
       "computedHash": "1018a8d7e4d63fa1659d1a7845ca6511a6c020b517e396893636070716c7169b"
     },
+    "github-actions-docs": {
+      "source": "xixu-me/skills",
+      "sourceType": "github",
+      "skillPath": "skills/github-actions-docs/SKILL.md",
+      "computedHash": "e9ac24e79715ef3060bd4ae376052f8d863b830604e69cb513b39764bf47ee53"
+    },
     "recharts": {
       "source": "ansanabria/skills",
       "sourceType": "github",
