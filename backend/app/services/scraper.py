@@ -1,6 +1,6 @@
 """
 Dicoding Coding Camp Scraper Service
-Adapted from diCodex/main.py to work with Docker Selenium container.
+Adapted from diCodex/main.py to work with Playwright browser automation.
 Pure scraping logic — job management is handled by ARQ.
 """
 import html
@@ -12,16 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Callable, Optional
 
-from selenium import webdriver
-from selenium.common.exceptions import (
-    InvalidSessionIdException,
-    NoSuchElementException,
-    TimeoutException,
-    WebDriverException,
-)
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.ui import WebDriverWait
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from dotenv import load_dotenv
 
 # Load environment variables from root directory
@@ -30,11 +21,9 @@ load_dotenv(dotenv_path=Path(__file__).parent.parent.parent.parent / ".env")
 
 # Configuration
 CODINGCAMP_URL = os.getenv("CODINGCAMP_URL", "https://codingcamp.dicoding.com")
-SELENIUM_URL = os.getenv("SELENIUM_URL", "http://selenium:4444")
 OUTPUT_DIR = Path("/app/output")
 MAX_PAGINATION_STEPS = 300
 INTERACTION_TIMEOUT_SECONDS = 20
-ASYNC_SCRIPT_TIMEOUT_SECONDS = 240
 FAST_PAGINATION_DELAY_MS = 120
 
 
@@ -45,18 +34,18 @@ class InvalidCredentialsError(Exception):
 
 class ScraperService:
     """
-    Scrapes Dicoding Coding Camp student data via Selenium.
+    Scrapes Dicoding Coding Camp student data via Playwright.
 
     This class is stateless — each call to run_scraper() creates its own
-    Selenium session. Job lifecycle is managed by ARQ.
+    Playwright session. Job lifecycle is managed by ARQ.
     """
 
     def run_scraper(
         self,
-        email: str | None = None,
-        password: str | None = None,
-        on_progress: callable = None,
-        progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        email=None,
+        password=None,
+        on_progress=None,
+        progress_callback=None,
     ) -> Dict[str, Any]:
         """
         Run the scraping process.
@@ -76,7 +65,7 @@ class ScraperService:
         if not scraper_email or not scraper_password:
             raise ValueError("Email and password are required")
 
-        driver = self._build_driver()
+        playwright, browser, page = self._build_browser()
 
         try:
             if progress_callback:
@@ -86,40 +75,40 @@ class ScraperService:
             if progress_callback:
                 progress_callback("Navigating to login page...", 5, 100)
 
-            driver.get(CODINGCAMP_URL)
-            wait = WebDriverWait(driver, 30)
-            self._wait_for_page_ready(driver, wait)
-            self._click_password_link(driver, wait)
+            page.goto(CODINGCAMP_URL)
+            self._wait_for_page_ready(page)
+            self._click_password_link(page)
 
             if progress_callback:
                 progress_callback("Logging in...", 10, 100)
-            self._login_with_email_password(driver, wait, scraper_email, scraper_password)
+            self._login_with_email_password(page, scraper_email, scraper_password)
 
             # Wait for redirect after login, detecting invalid credentials
             try:
-                WebDriverWait(driver, 30).until(
-                    lambda d: self._check_login_result(d)
+                page.wait_for_function(
+                    "() => !window.location.href.includes('/login')", timeout=30000
                 )
-            except InvalidCredentialsError:
-                raise
-            except (TimeoutException, InvalidSessionIdException, WebDriverException) as exc:
+            except PlaywrightTimeoutError:
+                error_msg = self._check_login_error(page)
+                if error_msg:
+                    raise InvalidCredentialsError(f"Login failed — {error_msg}")
                 raise InvalidCredentialsError(
                     "Login failed. The email or password may be incorrect."
-                ) from exc
+                )
 
-            self._wait_for_page_ready(driver, wait)
+            self._wait_for_page_ready(page)
 
             # Extract mentor info immediately for notification
-            mentor_info = self._extract_mentor_from_dom(driver)
+            mentor_info = self._extract_mentor_from_dom(page)
             if on_progress:
                 on_progress("started", mentor_info)
             if progress_callback:
                 progress_callback("Expanding student list...", 15, 100)
 
             # Expand all student data
-            self._expand_all_student_data(driver)
+            self._expand_all_student_data(page)
             self._wait_until(
-                lambda: len(driver.find_elements(By.CSS_SELECTOR, "section.daily-checkins")) > 0,
+                lambda: len(page.query_selector_all("section.daily-checkins")) > 0,
                 timeout=8,
             )
 
@@ -127,7 +116,7 @@ class ScraperService:
                 progress_callback("Extracting student data...", 20, 100)
 
             # Extract and save data
-            payload = self._build_export_json(driver, progress_callback)
+            payload = self._build_export_json(page, progress_callback)
 
             # Save to file
             group_name = self._sanitize_filename_part(
@@ -152,34 +141,27 @@ class ScraperService:
             }
 
         finally:
-            driver.quit()
+            try:
+                browser.close()
+            finally:
+                playwright.stop()
 
-    def _build_driver(self) -> webdriver.Remote:
-        """Build Selenium Remote WebDriver for Docker container"""
-        options = webdriver.ChromeOptions()
-        options.page_load_strategy = "eager"
-        options.add_experimental_option(
-            "prefs",
-            {
-                "profile.managed_default_content_settings.images": 2,
-            },
+    def _build_browser(self) -> tuple[Any, Any, Any]:
+        playwright = sync_playwright().start()
+        browser = playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-extensions",
+                "--disable-background-networking",
+                "--disable-software-rasterizer",
+                "--window-size=1280,720",
+            ],
         )
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--headless=new")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-background-networking")
-        options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--window-size=1280,720")
-
-        driver = webdriver.Remote(
-            command_executor=SELENIUM_URL,
-            options=options,
-        )
-        driver.set_script_timeout(ASYNC_SCRIPT_TIMEOUT_SECONDS)
-
-        return driver
+        page = browser.new_page()
+        return playwright, browser, page
 
     # ── Helpers ────────────────────────────────────────────────────────
 
@@ -257,45 +239,45 @@ class ScraperService:
         return blocks
 
     @staticmethod
-    def _find_first_visible(driver, locators):
-        for by, value in locators:
-            for element in driver.find_elements(by, value):
-                if element.is_displayed():
+    def _find_first_visible(page, selectors):
+        for selector in selectors:
+            for element in page.query_selector_all(selector):
+                if element.is_visible():
                     return element
         return None
 
     @staticmethod
-    def _wait_for_page_ready(driver, wait):
-        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-        wait.until(ec.presence_of_element_located((By.CSS_SELECTOR, "body")))
+    def _wait_for_page_ready(page):
+        page.wait_for_function("() => document.readyState === 'complete'", timeout=30000)
+        page.wait_for_selector("body", timeout=30000)
 
     @staticmethod
-    def _click_element(driver, element):
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+    def _click_element(page, element):
+        element.scroll_into_view_if_needed()
         try:
             element.click()
         except Exception:
-            driver.execute_script("arguments[0].click();", element)
+            page.evaluate("(element) => element.click()", element)
 
-    def _click_password_link(self, driver, wait):
-        locators = [
-            (By.LINK_TEXT, "your password"),
-            (By.XPATH, "//a[normalize-space()='your password']"),
-            (By.XPATH, "//a[contains(normalize-space(.), 'your password')]"),
+    def _click_password_link(self, page):
+        selectors = [
+            "a:has-text('your password')",
+            "xpath=//a[normalize-space()='your password']",
+            "xpath=//a[contains(normalize-space(.), 'your password')]",
         ]
 
-        for locator in locators:
+        for selector in selectors:
             try:
-                element = wait.until(ec.element_to_be_clickable(locator))
-                self._click_element(driver, element)
+                element = page.wait_for_selector(selector, state="visible", timeout=5000)
+                self._click_element(page, element)
                 return
-            except TimeoutException:
+            except PlaywrightTimeoutError:
                 continue
 
-        raise NoSuchElementException("Link 'your password' not found")
+        raise RuntimeError("Link 'your password' not found")
 
     @staticmethod
-    def _check_login_error(driver) -> str | None:
+    def _check_login_error(page) -> str | None:
         """Check the page for login error messages. Returns the error text if found, None otherwise."""
         error_selectors = [
             "[role='alert']",
@@ -305,31 +287,33 @@ class ScraperService:
             "[data-testid='error']",
         ]
         for selector in error_selectors:
-            elements = driver.find_elements(By.CSS_SELECTOR, selector)
+            elements = page.query_selector_all(selector)
             for el in elements:
-                if el.is_displayed() and el.text.strip():
-                    return el.text.strip()
+                text = (el.text_content() or "").strip()
+                if el.is_visible() and text:
+                    return text
 
         error_keywords = ["invalid", "incorrect", "wrong", "salah", "gagal", "failed"]
         try:
-            page_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+            body = page.query_selector("body")
+            page_text = (body.text_content() if body else "").lower()
             for keyword in error_keywords:
-                if keyword in page_text and "/login" in driver.current_url:
+                if keyword in page_text and "/login" in page.url:
                     return f"Login page shows an error (detected keyword: '{keyword}')"
         except Exception:
             pass
 
         return None
 
-    def _check_login_result(self, driver) -> bool:
+    def _check_login_result(self, page) -> bool:
         """
-        Condition for WebDriverWait: returns True when login succeeded (redirected away from /login).
+        Condition for login wait: returns True when login succeeded (redirected away from /login).
         Raises InvalidCredentialsError early if an error message is detected on the page.
         """
-        if "/login" not in driver.current_url:
+        if "/login" not in page.url:
             return True
 
-        error_msg = self._check_login_error(driver)
+        error_msg = self._check_login_error(page)
         if error_msg:
             raise InvalidCredentialsError(
                 f"Login failed — the site returned an error: {error_msg}"
@@ -337,122 +321,97 @@ class ScraperService:
 
         return False
 
-    def _login_with_email_password(self, driver, wait, email: str, password: str):
-        wait.until(
-            ec.visibility_of_element_located((By.CSS_SELECTOR, "input[type='password']"))
-        )
+    def _login_with_email_password(self, page, email: str, password: str):
+        page.wait_for_selector("input[type='password']", state="visible", timeout=30000)
 
         if not email or not password:
             raise ValueError("EMAIL/PASSWORD empty. Credentials must be provided.")
 
         email_input = self._find_first_visible(
-            driver,
+            page,
             [
-                (By.CSS_SELECTOR, "input[type='email']"),
-                (By.NAME, "email"),
-                (By.ID, "email"),
+                "input[type='email']",
+                "input[name='email']",
+                "input#email",
             ],
         )
         password_input = self._find_first_visible(
-            driver,
+            page,
             [
-                (By.CSS_SELECTOR, "input[type='password']"),
-                (By.NAME, "password"),
-                (By.ID, "password"),
+                "input[type='password']",
+                "input[name='password']",
+                "input#password",
             ],
         )
         submit_button = self._find_first_visible(
-            driver,
+            page,
             [
-                (By.CSS_SELECTOR, "button[type='submit']"),
-                (By.CSS_SELECTOR, "input[type='submit']"),
-                (
-                    By.XPATH,
-                    "//button[contains(., 'Sign in') or contains(., 'Login') or contains(., 'Masuk')]",
-                ),
+                "button[type='submit']",
+                "input[type='submit']",
+                "xpath=//button[contains(., 'Sign in') or contains(., 'Login') or contains(., 'Masuk')]",
             ],
         )
 
         if not email_input or not password_input or not submit_button:
-            raise NoSuchElementException("Login form components not found")
+            raise RuntimeError("Login form components not found")
 
-        email_input.clear()
-        email_input.send_keys(email)
-        password_input.clear()
-        password_input.send_keys(password)
-        self._click_element(driver, submit_button)
+        email_input.fill(email)
+        password_input.fill(password)
+        self._click_element(page, submit_button)
 
-    def _expand_all_student_data(self, driver):
+    def _expand_all_student_data(self, page):
         """Expand all student data sections"""
         text_normalizer = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         text_lower = "abcdefghijklmnopqrstuvwxyz"
 
-        student_input_locators = [
-            (
-                By.XPATH,
-                f"//input[contains(translate(@placeholder, '{text_normalizer}', '{text_lower}'), 'student') "
-                f"and contains(translate(@placeholder, '{text_normalizer}', '{text_lower}'), 'id')]",
-            ),
-            (
-                By.XPATH,
-                f"//input[contains(translate(@aria-label, '{text_normalizer}', '{text_lower}'), 'student') "
-                f"and contains(translate(@aria-label, '{text_normalizer}', '{text_lower}'), 'id')]",
-            ),
-            (
-                By.XPATH,
-                f"//div[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), \"student's name or id\")]",
-            ),
+        student_input_selectors = [
+            "xpath="
+            f"//input[contains(translate(@placeholder, '{text_normalizer}', '{text_lower}'), 'student') "
+            f"and contains(translate(@placeholder, '{text_normalizer}', '{text_lower}'), 'id')]",
+            "xpath="
+            f"//input[contains(translate(@aria-label, '{text_normalizer}', '{text_lower}'), 'student') "
+            f"and contains(translate(@aria-label, '{text_normalizer}', '{text_lower}'), 'id')]",
+            "xpath="
+            f"//div[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), \"student's name or id\")]",
         ]
-        select_all_locators = [
-            (
-                By.XPATH,
-                f"//button[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'select all')]",
-            ),
-            (
-                By.XPATH,
-                f"//label[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'select all')]",
-            ),
-            (
-                By.XPATH,
-                f"//span[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'select all')]",
-            ),
+        select_all_selectors = [
+            "xpath="
+            f"//button[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'select all')]",
+            "xpath="
+            f"//label[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'select all')]",
+            "xpath="
+            f"//span[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'select all')]",
         ]
-        expand_all_locators = [
-            (
-                By.XPATH,
-                f"//button[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'expand all')]",
-            ),
-            (
-                By.XPATH,
-                f"//span[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'expand all')]",
-            ),
-            (
-                By.XPATH,
-                f"//*[@role='button' and contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'expand all')]",
-            ),
+        expand_all_selectors = [
+            "xpath="
+            f"//button[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'expand all')]",
+            "xpath="
+            f"//span[contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'expand all')]",
+            "xpath="
+            f"//*[@role='button' and contains(translate(normalize-space(.), '{text_normalizer}', '{text_lower}'), 'expand all')]",
         ]
 
-        self._click_from_locators(driver, student_input_locators, "Input student's name or ID")
-        self._wait_for_any_locator(driver, select_all_locators, timeout=5)
-        self._click_from_locators(driver, select_all_locators, "Select All")
-        self._wait_for_any_locator(driver, expand_all_locators, timeout=5)
-        self._click_from_locators(driver, expand_all_locators, "Expand All")
+        self._click_from_locators(page, student_input_selectors, "Input student's name or ID")
+        self._wait_for_any_locator(page, select_all_selectors, timeout=5)
+        self._click_from_locators(page, select_all_selectors, "Select All")
+        self._wait_for_any_locator(page, expand_all_selectors, timeout=5)
+        self._click_from_locators(page, expand_all_selectors, "Expand All")
         self._wait_until(
-            lambda: len(driver.find_elements(By.CSS_SELECTOR, "section.point-histories")) > 0,
+            lambda: len(page.query_selector_all("section.point-histories")) > 0,
             timeout=8,
         )
 
-    def _click_from_locators(self, driver, locators, action_label):
+    def _click_from_locators(self, page, locators, action_label):
         deadline = time.time() + INTERACTION_TIMEOUT_SECONDS
         last_error = None
 
         while time.time() < deadline:
-            for by, value in locators:
-                element = self._find_first_visible(driver, [(by, value)])
+            for selector in locators:
+                element = self._find_first_visible(page, [selector])
                 if not element:
                     continue
                 try:
-                    self._click_element(driver, element)
+                    self._click_element(page, element)
                     return
                 except Exception as error:
                     last_error = error
@@ -460,32 +419,32 @@ class ScraperService:
 
         message = f"Failed to click '{action_label}'"
         if last_error:
-            raise NoSuchElementException(f"{message}. Detail: {last_error}") from last_error
-        raise NoSuchElementException(message)
+            raise RuntimeError(f"{message}. Detail: {last_error}") from last_error
+        raise RuntimeError(message)
 
     def _build_export_json(
         self,
-        driver,
+        page,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
     ) -> dict:
         """Build the JSON export from scraped data"""
-        mentor = self._extract_mentor_from_dom(driver)
+        mentor = self._extract_mentor_from_dom(page)
 
         # Click show all buttons
-        self._click_all_buttons_by_keyword(driver, "show all attendances")
-        show_all_courses_clicked = self._click_all_buttons_by_keyword(driver, "show all courses")
+        self._click_all_buttons_by_keyword(page, "show all attendances")
+        show_all_courses_clicked = self._click_all_buttons_by_keyword(page, "show all courses")
         show_all_assignments_clicked = self._click_all_buttons_by_keyword(
-            driver, "show all assignments"
+            page, "show all assignments"
         )
         show_all_attendances_clicked = self._click_all_buttons_by_keyword(
-            driver, "show all attend"
+            page, "show all attend"
         )
 
-        source = driver.page_source
+        source = page.content()
         blocks = self._student_blocks(source)
 
         if not blocks:
-            raise NoSuchElementException("No student blocks found")
+            raise RuntimeError("No student blocks found")
 
         students = [self._parse_student(block) for block in blocks]
         total_students = len(students)
@@ -495,7 +454,7 @@ class ScraperService:
 
         try:
             fast_attendance_by_student = self._extract_attendances_all_students_fast(
-                driver
+                page
             )
         except Exception:
             fast_attendance_by_student = None
@@ -503,14 +462,14 @@ class ScraperService:
         if progress_callback:
             progress_callback("Collecting daily check-ins in bulk...", 25, 100)
         try:
-            fast_daily_by_student = self._extract_daily_checkins_all_students_fast(driver)
+            fast_daily_by_student = self._extract_daily_checkins_all_students_fast(page)
         except Exception:
             fast_daily_by_student = None
 
         if progress_callback:
             progress_callback("Collecting point histories in bulk...", 30, 100)
         try:
-            fast_point_by_student = self._extract_point_histories_all_students_fast(driver)
+            fast_point_by_student = self._extract_point_histories_all_students_fast(page)
         except Exception:
             fast_point_by_student = None
 
@@ -571,20 +530,20 @@ class ScraperService:
                 }
             else:
                 students[idx]["progress"]["daily_checkins"] = {
-                    "items": self._extract_daily_checkins_all_pages(driver, idx)
+                    "items": self._extract_daily_checkins_all_pages(page, idx)
                 }
 
             if fast_point_by_student and idx < len(fast_point_by_student):
                 students[idx]["progress"]["point_histories"] = fast_point_by_student[idx]
             else:
                 students[idx]["progress"]["point_histories"] = (
-                    self._extract_point_histories_all_pages(driver, idx)
+                    self._extract_point_histories_all_pages(page, idx)
                 )
 
         return {
             "metadata": {
                 "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-                "source_url": driver.current_url,
+                "source_url": page.url,
                 "student_total": len(students),
                 "show_all_courses_clicked": show_all_courses_clicked,
                 "show_all_assignments_clicked": show_all_assignments_clicked,
@@ -594,20 +553,55 @@ class ScraperService:
             "students": students,
         }
 
-    def _extract_mentor_from_dom(self, driver) -> dict:
+    def _extract_mentor_from_dom(self, page) -> dict:
         """Extract mentor information from DOM"""
-        data = driver.execute_script(
+        data = page.evaluate(
             r"""
+            () => {
             const text = (el) => (el?.textContent || "").replace(/\s+/g, " ").trim();
+            const allText = Array.from(document.querySelectorAll("body *"))
+              .map((el) => text(el))
+              .filter(Boolean);
+            const groupPattern = /^(CAC|CDC|CFC)-\d+$/i;
+            const codePattern = /^facil-[a-z]+-\d+$/i;
             const nav = Array.from(document.querySelectorAll("a.nav-link"))
               .map((el) => text(el))
               .filter(Boolean);
+
+            const codeElement = Array.from(document.querySelectorAll(".text-id.uppercase, .text-id"))
+              .find((el) => codePattern.test(text(el)));
+            const mentorCard = codeElement?.closest(".card");
+            const cardText = mentorCard
+              ? Array.from(mentorCard.querySelectorAll("*"))
+                .map((el) => text(el))
+                .filter(Boolean)
+              : [];
+            const oldName = text(document.querySelector(".sidebar-menu .text-xl"));
+            const newName = text(mentorCard?.querySelector("span.text-xl"))
+              || Array.from(document.querySelectorAll(".card span.text-xl"))
+                .map((el) => text(el))
+                .find((value) => value && !groupPattern.test(value) && !codePattern.test(value))
+              || "";
+            const mentorCode = text(document.querySelector(".sidebar-menu .text-id.uppercase"))
+              || text(codeElement)
+              || allText.find((value) => codePattern.test(value))
+              || "";
+            const oldGroup = text(document.querySelector("li .font-normal.text-black.pt-1.pl-5"));
+            const newGroup = cardText.find((value) => groupPattern.test(value))
+              || allText.find((value) => groupPattern.test(value))
+              || "";
+            const codeGroup = (mentorCode.match(/^facil-([a-z]+)-(\d+)$/i) || [])
+              .slice(1)
+              .join("-")
+              .toUpperCase();
+
             return {
-              name: text(document.querySelector(".sidebar-menu .text-xl")),
-              mentor_code: text(document.querySelector(".sidebar-menu .text-id.uppercase")),
-              group: text(document.querySelector("li .font-normal.text-black.pt-1.pl-5")),
+              name: oldName || newName,
+              mentor_code: mentorCode,
+              group: oldGroup || newGroup || codeGroup,
               nav_items: nav
             };
+            }
             """
         )
         return {
@@ -617,18 +611,16 @@ class ScraperService:
             "nav_items": data.get("nav_items", []),
         }
 
-    def _click_all_buttons_by_keyword(self, driver, keyword: str, max_clicks: int = 500) -> int:
+    def _click_all_buttons_by_keyword(self, page, keyword: str, max_clicks: int = 500) -> int:
         """Click all buttons containing a keyword"""
         keyword = keyword.lower()
-        payload = driver.execute_async_script(
+        payload = page.evaluate(
             """
-            const keyword = arguments[0];
-            const maxClicks = arguments[1];
-            const done = arguments[arguments.length - 1];
+            async ({ keyword, maxClicks }) => {
             const text = (el) => (el?.textContent || "").replace(/\\s+/g, " ").trim().toLowerCase();
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-            (async () => {
+            try {
               let clicked = 0;
               for (let round = 0; round < 30; round += 1) {
                 const buttons = Array.from(document.querySelectorAll("button"))
@@ -653,11 +645,13 @@ class ScraperService:
                 await sleep(60);
               }
 
-              done({ ok: true, clicked });
-            })().catch((error) => done({ ok: false, error: String(error) }));
+              return { ok: true, clicked };
+            } catch (error) {
+              return { ok: false, error: String(error) };
+            }
+            }
             """,
-            keyword,
-            max_clicks,
+            {"keyword": keyword, "maxClicks": max_clicks},
         )
         if not payload or not payload.get("ok"):
             clicked = 0
@@ -668,26 +662,26 @@ class ScraperService:
                 ")]"
             )
             while clicked < max_clicks:
-                buttons = driver.find_elements(By.XPATH, xpath)
+                buttons = page.query_selector_all(f"xpath={xpath}")
                 target = None
                 for button in buttons:
-                    if button.is_displayed():
+                    if button.is_visible():
                         target = button
                         break
                 if not target:
                     break
-                self._click_element(driver, target)
+                self._click_element(page, target)
                 clicked += 1
                 time.sleep(0.05)
             return clicked
         return int(payload.get("clicked", 0))
 
-    def _extract_daily_checkins_all_students_fast(self, driver) -> list[list[dict]]:
+    def _extract_daily_checkins_all_students_fast(self, page) -> list[list[dict]]:
         """Extract daily check-ins for all students with one async browser script."""
-        payload = driver.execute_async_script(
+        payload = page.evaluate(
             r"""
-            const delayMs = Number(arguments[0] || 80);
-            const done = arguments[arguments.length - 1];
+            async (delayMs) => {
+            delayMs = Number(delayMs || 80);
             const text = (el) => (el?.textContent || "").replace(/\s+/g, " ").trim();
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             const maxSteps = 300;
@@ -754,7 +748,7 @@ class ScraperService:
                 goals: entry.goals || [],
               });
 
-            (async () => {
+            try {
               const sections = Array.from(document.querySelectorAll("section.daily-checkins"));
               const allItems = [];
 
@@ -789,8 +783,11 @@ class ScraperService:
                 allItems.push(items);
               }
 
-              done({ ok: true, items: allItems });
-            })().catch((error) => done({ ok: false, error: String(error) }));
+              return { ok: true, items: allItems };
+            } catch (error) {
+              return { ok: false, error: String(error) };
+            }
+            }
             """,
             FAST_PAGINATION_DELAY_MS,
         )
@@ -800,12 +797,12 @@ class ScraperService:
             raise RuntimeError(f"Fast extraction daily-checkins failed: {message}")
         return payload.get("items", [])
 
-    def _extract_point_histories_all_students_fast(self, driver) -> list[dict]:
+    def _extract_point_histories_all_students_fast(self, page) -> list[dict]:
         """Extract point histories for all students with one async browser script."""
-        payload = driver.execute_async_script(
+        payload = page.evaluate(
             r"""
-            const delayMs = Number(arguments[0] || 80);
-            const done = arguments[arguments.length - 1];
+            async (delayMs) => {
+            delayMs = Number(delayMs || 80);
             const text = (el) => (el?.textContent || "").replace(/\s+/g, " ").trim();
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             const maxSteps = 300;
@@ -828,7 +825,7 @@ class ScraperService:
               return disabledAttr || ariaDisabled === "true" || !button.isConnected;
             };
 
-            (async () => {
+            try {
               const sections = Array.from(document.querySelectorAll("section.point-histories"));
               const allItems = [];
 
@@ -897,8 +894,11 @@ class ScraperService:
                 });
               }
 
-              done({ ok: true, items: allItems });
-            })().catch((error) => done({ ok: false, error: String(error) }));
+              return { ok: true, items: allItems };
+            } catch (error) {
+              return { ok: false, error: String(error) };
+            }
+            }
             """,
             FAST_PAGINATION_DELAY_MS,
         )
@@ -908,11 +908,11 @@ class ScraperService:
             raise RuntimeError(f"Fast extraction point-histories failed: {message}")
         return payload.get("items", [])
 
-    def _wait_for_any_locator(self, driver, locators, timeout: float = 5.0) -> bool:
+    def _wait_for_any_locator(self, page, locators, timeout: float = 5.0) -> bool:
         """Wait until any locator in list becomes visible."""
         deadline = time.time() + timeout
         while time.time() < deadline:
-            element = self._find_first_visible(driver, locators)
+            element = self._find_first_visible(page, locators)
             if element is not None:
                 return True
             time.sleep(0.08)
@@ -930,25 +930,24 @@ class ScraperService:
             time.sleep(0.08)
         return False
 
-    def _section_signature(self, driver, selector: str, section_index: int) -> str:
+    def _section_signature(self, page, selector: str, section_index: int) -> str:
         """Return a compact signature for section content to detect page changes."""
-        return driver.execute_script(
+        return page.evaluate(
             r"""
-            const selector = arguments[0];
-            const index = arguments[1];
+            ({ selector, index }) => {
             const sections = document.querySelectorAll(selector);
             if (!sections || sections.length <= index) return "";
             const section = sections[index];
             const text = (section.textContent || "").replace(/\s+/g, " ").trim();
             return text.slice(0, 4000);
+            }
             """,
-            selector,
-            section_index,
+            {"selector": selector, "index": section_index},
         ) or ""
 
     def _wait_for_section_change(
         self,
-        driver,
+        page,
         selector: str,
         section_index: int,
         previous_signature: str,
@@ -957,7 +956,7 @@ class ScraperService:
         """Wait until section content changes after pagination click."""
         return self._wait_until(
             lambda: (
-                (current := self._section_signature(driver, selector, section_index))
+                (current := self._section_signature(page, selector, section_index))
                 and current != previous_signature
             ),
             timeout=timeout,
@@ -1079,10 +1078,11 @@ class ScraperService:
             },
         }
 
-    def _extract_attendances_all_students_fast(self, driver) -> list[dict]:
+    def _extract_attendances_all_students_fast(self, page) -> list[dict]:
         """Extract attendance section for all students in one browser call."""
-        payload = driver.execute_script(
+        payload = page.evaluate(
             r"""
+            () => {
             const text = (el) => (el?.textContent || "").replace(/\s+/g, " ").trim();
             const cards = Array.from(
               document.querySelectorAll("div.container.flex.flex-col.pb-8.border-b")
@@ -1121,6 +1121,7 @@ class ScraperService:
                 items,
               };
             });
+            }
             """
         )
         if not isinstance(payload, list):
@@ -1165,24 +1166,24 @@ class ScraperService:
 
         return normalized_payload
 
-    def _extract_daily_checkins_all_pages(self, driver, student_index: int) -> list:
+    def _extract_daily_checkins_all_pages(self, page, student_index: int) -> list:
         """Extract daily check-ins with pagination"""
         items = []
         seen = set()
         stale_rounds = 0
 
         for _ in range(MAX_PAGINATION_STEPS):
-            sections = driver.find_elements(By.CSS_SELECTOR, "section.daily-checkins")
+            sections = page.query_selector_all("section.daily-checkins")
             if student_index >= len(sections):
                 break
             section = sections[student_index]
             previous_signature = self._section_signature(
-                driver, "section.daily-checkins", student_index
+                page, "section.daily-checkins", student_index
             )
 
-            entries = driver.execute_script(
+            entries = page.evaluate(
                 r"""
-                const section = arguments[0];
+                (section) => {
                 const text = (el) => (el?.textContent || "").replace(/\s+/g, " ").trim();
                 const cards = Array.from(section.querySelectorAll("div.border-b.p-6"));
                 return cards.map((card) => {
@@ -1216,6 +1217,7 @@ class ScraperService:
 
                   return { mood, date, reflection, goals };
                 });
+                }
                 """,
                 section,
             )
@@ -1242,9 +1244,8 @@ class ScraperService:
             else:
                 stale_rounds = 0
 
-            next_buttons = section.find_elements(
-                By.XPATH,
-                ".//button[normalize-space()='Next' or .//span[normalize-space()='Next']]",
+            next_buttons = section.query_selector_all(
+                "xpath=.//button[normalize-space()='Next' or .//span[normalize-space()='Next']]"
             )
             if not next_buttons:
                 break
@@ -1255,9 +1256,9 @@ class ScraperService:
             if disabled or stale_rounds >= 2:
                 break
 
-            self._click_element(driver, next_button)
+            self._click_element(page, next_button)
             self._wait_for_section_change(
-                driver,
+                page,
                 "section.daily-checkins",
                 student_index,
                 previous_signature,
@@ -1266,7 +1267,7 @@ class ScraperService:
 
         return items
 
-    def _extract_point_histories_all_pages(self, driver, student_index: int) -> dict:
+    def _extract_point_histories_all_pages(self, page, student_index: int) -> dict:
         """Extract point histories with pagination"""
         last_updated = ""
         total_point = ""
@@ -1276,17 +1277,17 @@ class ScraperService:
         stale_rounds = 0
 
         for _ in range(MAX_PAGINATION_STEPS):
-            sections = driver.find_elements(By.CSS_SELECTOR, "section.point-histories")
+            sections = page.query_selector_all("section.point-histories")
             if student_index >= len(sections):
                 break
             section = sections[student_index]
             previous_signature = self._section_signature(
-                driver, "section.point-histories", student_index
+                page, "section.point-histories", student_index
             )
 
-            payload = driver.execute_script(
+            payload = page.evaluate(
                 r"""
-                const section = arguments[0];
+                (section) => {
                 const text = (el) => (el?.textContent || "").replace(/\s+/g, " ").trim();
 
                 const lastUpdatedRaw = text(section.querySelector("[data-element='point-histories-last-update']"));
@@ -1309,6 +1310,7 @@ class ScraperService:
                   none_text: noneText,
                   rows
                 };
+                }
                 """,
                 section,
             )
@@ -1341,9 +1343,8 @@ class ScraperService:
             else:
                 stale_rounds = 0
 
-            next_buttons = section.find_elements(
-                By.XPATH,
-                ".//button[normalize-space()='Next' or .//span[normalize-space()='Next']]",
+            next_buttons = section.query_selector_all(
+                "xpath=.//button[normalize-space()='Next' or .//span[normalize-space()='Next']]"
             )
             if not next_buttons:
                 break
@@ -1354,9 +1355,9 @@ class ScraperService:
             if disabled or stale_rounds >= 2:
                 break
 
-            self._click_element(driver, next_button)
+            self._click_element(page, next_button)
             self._wait_for_section_change(
-                driver,
+                page,
                 "section.point-histories",
                 student_index,
                 previous_signature,

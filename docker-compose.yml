@@ -20,7 +20,6 @@ services:
     container_name: student-dashboard-backend
     # No port exposed — accessed via Nginx reverse proxy on internal network
     environment:
-      - SELENIUM_URL=http://selenium:4444
       - CODINGCAMP_URL=https://codingcamp.dicoding.com
       - API_KEY=${API_KEY}
       - REDIS_URL=redis://redis:6379
@@ -33,7 +32,6 @@ services:
     volumes:
       - scraped_data:/app/output
     depends_on:
-      - selenium
       - redis
     restart: unless-stopped
 
@@ -44,7 +42,6 @@ services:
     container_name: student-dashboard-worker
     command: uv run python -m app.run_worker
     environment:
-      - SELENIUM_URL=http://selenium:4444
       - CODINGCAMP_URL=https://codingcamp.dicoding.com
       - REDIS_URL=redis://redis:6379
       - CONN_PSQL=${CONN_PSQL}
@@ -56,7 +53,6 @@ services:
     volumes:
       - scraped_data:/app/output
     depends_on:
-      - selenium
       - redis
     restart: unless-stopped
 
@@ -67,27 +63,7 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
-  selenium:
-    image: selenium/standalone-chrome:latest
-    container_name: student-dashboard-selenium
-    # NEVER expose ports in production — only backend/worker access via internal network
-    shm_size: 512m
-    environment:
-      - SE_NODE_MAX_SESSIONS=1
-      - SE_NODE_SESSION_TIMEOUT=120
-      - SE_SESSION_REQUEST_TIMEOUT=60
-      - SE_SESSION_RETRY_INTERVAL=2
-      - SE_VNC_NO_PASSWORD=false
-      - JAVA_OPTS=-Xmx256m
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1g
-        reservations:
-          cpus: "0.5"
-          memory: 512m
-    restart: unless-stopped
+
 
 volumes:
   scraped_data:
