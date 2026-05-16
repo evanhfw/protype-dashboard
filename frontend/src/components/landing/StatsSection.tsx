@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Activity, TrendingUp, Users } from 'lucide-react';
+import { getConfig } from '@/lib/config';
 
 const API_URL = '';
-const API_KEY = import.meta.env.VITE_API_KEY || '';
+const API_KEY = getConfig().apiKey;
 
 interface ScrapingStats {
   today: Record<string, number>;

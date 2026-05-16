@@ -10,6 +10,7 @@ services:
     environment:
       - BACKEND_HOST=backend-staging
       - API_KEY=${STAGING_API_KEY:?STAGING_API_KEY is required}
+      - VITE_API_KEY=${STAGING_API_KEY:-}
     depends_on:
       - backend-staging
     restart: unless-stopped

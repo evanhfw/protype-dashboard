@@ -53,8 +53,6 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/cohort-dashboard-frontend:staging
-          build-args: |
-            VITE_API_KEY=${{ secrets.STAGING_API_KEY }}
 
   build-backend:
     runs-on: ubuntu-latest

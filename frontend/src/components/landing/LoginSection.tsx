@@ -36,8 +36,10 @@ type JsonMap = Record<string, unknown>;
 const asList = (value: unknown): JsonMap[] =>
   Array.isArray(value) ? (value as JsonMap[]) : [];
 
+import { getConfig } from '@/lib/config';
+
 const API_URL = '';
-const API_KEY = import.meta.env.VITE_API_KEY || '';
+const API_KEY = getConfig().apiKey;
 const MAX_POLL_ATTEMPTS = 60;
 
 function apiHeaders(extra: Record<string, string> = {}): Record<string, string> {
