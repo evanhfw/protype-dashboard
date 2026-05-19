@@ -88,6 +88,12 @@ const getStatusBadgeStyles = (status: ParsedStudentStatus | null) => {
   }
 };
 
+const extractCohortId = (profileLink: string | undefined): string | null => {
+  if (!profileLink) return null;
+  const parts = profileLink.split("/").filter(Boolean);
+  return parts[parts.length - 1] || null;
+};
+
 const AllStudentsView = ({ students }: AllStudentsViewProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | ParsedStudentStatus>("All");
@@ -105,11 +111,16 @@ const AllStudentsView = ({ students }: AllStudentsViewProps) => {
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      result = result.filter((student) =>
-        student.name.toLowerCase().includes(query) ||
-        student.profile?.university?.toLowerCase().includes(query) ||
-        student.profile?.major?.toLowerCase().includes(query)
-      );
+      result = result.filter((student) => {
+        const cohortId = extractCohortId(student.profile?.profileLink);
+        return (
+          student.name.toLowerCase().includes(query) ||
+          student.profile?.university?.toLowerCase().includes(query) ||
+          student.profile?.major?.toLowerCase().includes(query) ||
+          student.profile?.profileLink?.toLowerCase().includes(query) ||
+          cohortId?.toLowerCase().includes(query) || false
+        );
+      });
     }
 
     // Apply status filter
@@ -351,6 +362,16 @@ const AllStudentsView = ({ students }: AllStudentsViewProps) => {
                                   <span>{student.profile.major}</span>
                                 </div>
                               )}
+                              {(() => {
+                                const cohortId = extractCohortId(student.profile?.profileLink);
+                                return cohortId ? (
+                                  <div className="flex items-center justify-center gap-2 text-sm">
+                                    <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                                      {cohortId}
+                                    </span>
+                                  </div>
+                                ) : null;
+                              })()}
                               {student.profile?.profileLink && (
                                 <div className="flex items-center justify-center gap-2 text-sm mt-1">
                                   <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
