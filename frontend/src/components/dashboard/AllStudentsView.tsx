@@ -257,6 +257,14 @@ const AllStudentsView = ({ students }: AllStudentsViewProps) => {
                             {student.profile.university}
                           </p>
                         )}
+                        {(() => {
+                          const cohortId = extractCohortId(student.profile?.profileLink);
+                          return cohortId ? (
+                            <p className="text-[10px] font-mono text-muted-foreground/70 mt-0.5 truncate">
+                              ID: {cohortId}
+                            </p>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
